@@ -1,0 +1,98 @@
+{
+    "version": "https://jsonfeed.org/version/1",
+    "title": "Bloggy",
+    "home_page_url": "https://blog.rabbit-company.com",
+    "feed_url": "https://blog.rabbit-company.com/feed.json",
+    "description": "Simple and <a href='https://github.com/Rabbit-Company/Bloggy' target='_blank'>open source</a> blog",
+    "icon": "https://blog.rabbit-company.com/images/logo.png",
+    "author": {
+        "name": "Rabbit Company LLC",
+        "url": "https://rabbit-company.com"
+    },
+    "items": [
+        {
+            "id": "https://blog.rabbit-company.com/2023/01/05/the-importance-of-open-source-projects",
+            "url": "https://blog.rabbit-company.com/2023/01/05/the-importance-of-open-source-projects",
+            "title": "The importance of Open Source projects",
+            "summary": "Open source projects play a vital role in the technology ecosystem. They promote collaboration, innovation, and the sharing of knowledge and resources. As the digital world continues to evolve, it is important to support and foster the growth of open source projects.",
+            "image": "https://blog.rabbit-company.com/images/posts/rabbit-company/open_source.svg",
+            "date_modified": "2023-01-05T00:00:00.000Z",
+            "author": {
+                "name": "Rabbit Company",
+                "url": "https://blog.rabbit-company.com/?author=rabbit-company"
+            }
+        },
+        {
+            "id": "https://blog.rabbit-company.com/2023/01/06/what-are-cryptocurrencies",
+            "url": "https://blog.rabbit-company.com/2023/01/06/what-are-cryptocurrencies",
+            "title": "What are Cryptocurrencies?",
+            "summary": "Cryptocurrencies are digital or virtual currencies that use cryptography for secure financial transactions. They have gained a lot of attention in recent years due to their decentralized nature, as well as their potential to disrupt traditional financial systems.",
+            "image": "https://blog.rabbit-company.com/images/posts/rabbit-company/bitcoin.svg",
+            "date_modified": "2023-01-06T00:00:00.000Z",
+            "author": {
+                "name": "Rabbit Company",
+                "url": "https://blog.rabbit-company.com/?author=rabbit-company"
+            }
+        },
+        {
+            "id": "https://blog.rabbit-company.com/2023/01/04/why-are-password-managers-important",
+            "url": "https://blog.rabbit-company.com/2023/01/04/why-are-password-managers-important",
+            "title": "Why are password managers important?",
+            "summary": "Password managers are an important tool for anyone who values online security and convenience. By using a password manager, you can protect your accounts with strong, unique passwords and access them easily with just one master password.",
+            "image": "https://blog.rabbit-company.com/images/posts/rabbit-company/secure_files.svg",
+            "date_modified": "2023-01-04T00:00:00.000Z",
+            "author": {
+                "name": "Rabbit Company",
+                "url": "https://blog.rabbit-company.com/?author=rabbit-company"
+            }
+        },
+        {
+            "id": "https://blog.rabbit-company.com/2023/01/06/why-we-choose-plausible",
+            "url": "https://blog.rabbit-company.com/2023/01/06/why-we-choose-plausible",
+            "title": "Why we choose Plausible?",
+            "summary": "There are many reasons why we choose Plausible for our web analytics needs. Its focus on privacy, lightweight and fast performance, ease of use, and affordability make it a top choice for websites looking for an alternative to Google Analytics.",
+            "image": "https://blog.rabbit-company.com/images/posts/rabbit-company/dark_analytics.svg",
+            "date_modified": "2023-01-06T00:00:00.000Z",
+            "author": {
+                "name": "Rabbit Company",
+                "url": "https://blog.rabbit-company.com/?author=rabbit-company"
+            }
+        },
+        {
+            "id": "https://blog.rabbit-company.com/2023/01/06/why-you-should-choose-a-password-manager-that-uses-xchacha20-and-argon2id",
+            "url": "https://blog.rabbit-company.com/2023/01/06/why-you-should-choose-a-password-manager-that-uses-xchacha20-and-argon2id",
+            "title": "Why you should choose a password manager that uses XChaCha20 and Argon2id",
+            "summary": "Passky's use of XChaCha20 and Argon2id makes it a secure and reliable choice for storing and managing your passwords.",
+            "image": "https://blog.rabbit-company.com/images/posts/rabbit-company/vault.svg",
+            "date_modified": "2023-01-06T00:00:00.000Z",
+            "author": {
+                "name": "Rabbit Company",
+                "url": "https://blog.rabbit-company.com/?author=rabbit-company"
+            }
+        },
+        {
+            "id": "https://blog.rabbit-company.com/2023/01/06/why-you-should-use-a-hardware-wallet-to-store-your-cryptocurrencies",
+            "url": "https://blog.rabbit-company.com/2023/01/06/why-you-should-use-a-hardware-wallet-to-store-your-cryptocurrencies",
+            "title": "Why you should use a hardware wallet to store your cryptocurrencies",
+            "summary": "Storing your cryptocurrencies on a hardware wallet like Ledger is a smart move that can help protect your funds from cyber attacks and other types of online threats.",
+            "image": "https://blog.rabbit-company.com/images/posts/rabbit-company/bitcoin_p2p.svg",
+            "date_modified": "2023-01-06T00:00:00.000Z",
+            "author": {
+                "name": "Rabbit Company",
+                "url": "https://blog.rabbit-company.com/?author=rabbit-company"
+            }
+        },
+        {
+            "id": "https://blog.rabbit-company.com/2023/01/07/why-you-should-use-a-yubikey-to-secure-your-accounts",
+            "url": "https://blog.rabbit-company.com/2023/01/07/why-you-should-use-a-yubikey-to-secure-your-accounts",
+            "title": "Why you should use a Yubikey to secure your accounts",
+            "summary": "YubiKey is a simple and effective way to secure your online accounts. It provides an extra layer of security, is easy to use, portable, durable, and offers secure storage in case it is lost.",
+            "image": "https://blog.rabbit-company.com/images/posts/rabbit-company/security.svg",
+            "date_modified": "2023-01-07T00:00:00.000Z",
+            "author": {
+                "name": "Rabbit Company",
+                "url": "https://blog.rabbit-company.com/?author=rabbit-company"
+            }
+        }
+    ]
+}

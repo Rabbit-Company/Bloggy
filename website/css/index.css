@@ -1,0 +1,36 @@
+* {
+  scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+body{
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar-track {
+	background: #e4e4e4;
+}
+
+::-webkit-scrollbar-thumb {
+	background: #b3b3b3;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #999999;
+}
+
+.post-title {
+	margin-bottom: 0 !important;
+	padding-bottom: 0 !important;
+}
+
+.f16 {
+	font-size: 16px;
+}
+
+a{
+	color: #0051c3;
+}
