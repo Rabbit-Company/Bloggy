@@ -30,6 +30,12 @@ async function getValue(key, cacheTime = 600){
 	return value;
 }
 
+async function getFile(key, type = 'text/html;charset=UTF-8'){
+  let value = await getValue(key);
+  if(value !== null) return new Response(value, { headers: { 'content-type': type }});
+  return Response.redirect(env.DOMAIN, 307);
+}
+
 export async function onRequest(context) {
   request = context.request;
   env = context.env;
@@ -44,20 +50,18 @@ export async function onRequest(context) {
 
   // User Main Page
   if(paths.length == 1){
-    let key = "content-" + username;
-    html = await getValue(key);
-    if(html !== null) return new Response(html, { headers: { 'content-type': 'text/html;charset=UTF-8' }});
-    return Response.redirect(env.DOMAIN, 307);
+    return getFile("content-" + username);
   }
 
   let file = paths[1];
 
   if(paths.length == 2){
     if(file === 'feed.rss'){
-      let key = "rss-" + username;
-      let rss = await getValue(key);
-      if(rss !== null) return new Response(rss, { headers: { 'content-type': 'application/rss+xml' }});
-      return Response.redirect(env.DOMAIN, 307);
+      return getFile("feed-rss-" + username, 'application/rss+xml');
+    }else if(file === 'feed.atom'){
+      return getFile("feed-atom-" + username, 'application/atom+xml');
+    }else if(file === 'feed.json'){
+      return getFile("feed-json-" + username, 'application/json');
     }
   }
 
