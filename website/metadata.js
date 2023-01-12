@@ -7,7 +7,7 @@ var description = "Simple and open source network for creators";
 var author = "Rabbit Company";
 
 // Provide the domain on where you will host Bloggy
-var domain = "https://bloggy.io";
+var domain = "https://test.bloggy.io";
 
 // About what category does most of your blogs relate
 var category = "Technology";

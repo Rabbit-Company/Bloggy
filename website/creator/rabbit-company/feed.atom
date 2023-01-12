@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-    <id>https://bloggy.io/creator/rabbit-company/</id>
+    <id>https://test.bloggy.io/creator/rabbit-company/</id>
     <title>Rabbit Company</title>
-    <updated>2023-01-12T07:47:01.134Z</updated>
+    <updated>2023-01-12T20:45:41.666Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <author>
         <name>Rabbit Company</name>
         <email>info@rabbit-company.com</email>
-        <uri>https://bloggy.io/creator/rabbit-company/</uri>
+        <uri>https://test.bloggy.io/creator/rabbit-company/</uri>
     </author>
-    <link rel="alternate" href="https://bloggy.io/creator/rabbit-company/"/>
-    <link rel="self" href="https://bloggy.io/creator/rabbit-company/feed.atom"/>
+    <link rel="alternate" href="https://test.bloggy.io/creator/rabbit-company/"/>
+    <link rel="self" href="https://test.bloggy.io/creator/rabbit-company/feed.atom"/>
     <subtitle>Made with care and passion by Rabbit Company</subtitle>
     <logo>https://cdn.bloggy.io/avatars/rabbit-company.png</logo>
     <icon>https://cdn.bloggy.io/avatars/rabbit-company.png</icon>
@@ -18,86 +18,86 @@
     <category term="Technology"/>
     <entry>
         <title type="html"><![CDATA[The importance of Open Source projects]]></title>
-        <id>https://bloggy.io/creator/rabbit-company/en/the-importance-of-open-source-projects</id>
-        <link href="https://bloggy.io/creator/rabbit-company/en/the-importance-of-open-source-projects"/>
+        <id>https://test.bloggy.io/creator/rabbit-company/en/the-importance-of-open-source-projects</id>
+        <link href="https://test.bloggy.io/creator/rabbit-company/en/the-importance-of-open-source-projects"/>
         <updated>2023-01-05T00:00:00.000Z</updated>
         <summary type="html"><![CDATA[Open source projects play a vital role in the technology ecosystem. They promote collaboration, innovation, and the sharing of knowledge and resources. As the digital world continues to evolve, it is important to support and foster the growth of open source projects.]]></summary>
         <author>
             <name>Rabbit Company</name>
             <email>info@rabbit-company.com</email>
-            <uri>https://bloggy.io/creator/rabbit-company/</uri>
+            <uri>https://test.bloggy.io/creator/rabbit-company/</uri>
         </author>
     </entry>
     <entry>
         <title type="html"><![CDATA[What are Cryptocurrencies?]]></title>
-        <id>https://bloggy.io/creator/rabbit-company/en/what-are-cryptocurrencies</id>
-        <link href="https://bloggy.io/creator/rabbit-company/en/what-are-cryptocurrencies"/>
+        <id>https://test.bloggy.io/creator/rabbit-company/en/what-are-cryptocurrencies</id>
+        <link href="https://test.bloggy.io/creator/rabbit-company/en/what-are-cryptocurrencies"/>
         <updated>2023-01-06T00:00:00.000Z</updated>
         <summary type="html"><![CDATA[Cryptocurrencies are digital or virtual currencies that use cryptography for secure financial transactions. They have gained a lot of attention in recent years due to their decentralized nature, as well as their potential to disrupt traditional financial systems.]]></summary>
         <author>
             <name>Rabbit Company</name>
             <email>info@rabbit-company.com</email>
-            <uri>https://bloggy.io/creator/rabbit-company/</uri>
+            <uri>https://test.bloggy.io/creator/rabbit-company/</uri>
         </author>
     </entry>
     <entry>
         <title type="html"><![CDATA[Why are password managers important?]]></title>
-        <id>https://bloggy.io/creator/rabbit-company/en/why-are-password-managers-important</id>
-        <link href="https://bloggy.io/creator/rabbit-company/en/why-are-password-managers-important"/>
+        <id>https://test.bloggy.io/creator/rabbit-company/en/why-are-password-managers-important</id>
+        <link href="https://test.bloggy.io/creator/rabbit-company/en/why-are-password-managers-important"/>
         <updated>2023-01-04T00:00:00.000Z</updated>
         <summary type="html"><![CDATA[Password managers are an important tool for anyone who values online security and convenience. By using a password manager, you can protect your accounts with strong, unique passwords and access them easily with just one master password.]]></summary>
         <author>
             <name>Rabbit Company</name>
             <email>info@rabbit-company.com</email>
-            <uri>https://bloggy.io/creator/rabbit-company/</uri>
+            <uri>https://test.bloggy.io/creator/rabbit-company/</uri>
         </author>
     </entry>
     <entry>
         <title type="html"><![CDATA[Why we choose Plausible?]]></title>
-        <id>https://bloggy.io/creator/rabbit-company/en/why-we-choose-plausible</id>
-        <link href="https://bloggy.io/creator/rabbit-company/en/why-we-choose-plausible"/>
+        <id>https://test.bloggy.io/creator/rabbit-company/en/why-we-choose-plausible</id>
+        <link href="https://test.bloggy.io/creator/rabbit-company/en/why-we-choose-plausible"/>
         <updated>2023-01-06T00:00:00.000Z</updated>
         <summary type="html"><![CDATA[There are many reasons why we choose Plausible for our web analytics needs. Its focus on privacy, lightweight and fast performance, ease of use, and affordability make it a top choice for websites looking for an alternative to Google Analytics.]]></summary>
         <author>
             <name>Rabbit Company</name>
             <email>info@rabbit-company.com</email>
-            <uri>https://bloggy.io/creator/rabbit-company/</uri>
+            <uri>https://test.bloggy.io/creator/rabbit-company/</uri>
         </author>
     </entry>
     <entry>
         <title type="html"><![CDATA[Why you should choose a password manager that uses XChaCha20 and Argon2id]]></title>
-        <id>https://bloggy.io/creator/rabbit-company/en/why-you-should-choose-a-password-manager-that-uses-xchacha20-and-argon2id</id>
-        <link href="https://bloggy.io/creator/rabbit-company/en/why-you-should-choose-a-password-manager-that-uses-xchacha20-and-argon2id"/>
+        <id>https://test.bloggy.io/creator/rabbit-company/en/why-you-should-choose-a-password-manager-that-uses-xchacha20-and-argon2id</id>
+        <link href="https://test.bloggy.io/creator/rabbit-company/en/why-you-should-choose-a-password-manager-that-uses-xchacha20-and-argon2id"/>
         <updated>2023-01-06T00:00:00.000Z</updated>
         <summary type="html"><![CDATA[Passky's use of XChaCha20 and Argon2id makes it a secure and reliable choice for storing and managing your passwords.]]></summary>
         <author>
             <name>Rabbit Company</name>
             <email>info@rabbit-company.com</email>
-            <uri>https://bloggy.io/creator/rabbit-company/</uri>
+            <uri>https://test.bloggy.io/creator/rabbit-company/</uri>
         </author>
     </entry>
     <entry>
         <title type="html"><![CDATA[Why you should use a hardware wallet to store your cryptocurrencies]]></title>
-        <id>https://bloggy.io/creator/rabbit-company/en/why-you-should-use-a-hardware-wallet-to-store-your-cryptocurrencies</id>
-        <link href="https://bloggy.io/creator/rabbit-company/en/why-you-should-use-a-hardware-wallet-to-store-your-cryptocurrencies"/>
+        <id>https://test.bloggy.io/creator/rabbit-company/en/why-you-should-use-a-hardware-wallet-to-store-your-cryptocurrencies</id>
+        <link href="https://test.bloggy.io/creator/rabbit-company/en/why-you-should-use-a-hardware-wallet-to-store-your-cryptocurrencies"/>
         <updated>2023-01-06T00:00:00.000Z</updated>
         <summary type="html"><![CDATA[Storing your cryptocurrencies on a hardware wallet like Ledger is a smart move that can help protect your funds from cyber attacks and other types of online threats.]]></summary>
         <author>
             <name>Rabbit Company</name>
             <email>info@rabbit-company.com</email>
-            <uri>https://bloggy.io/creator/rabbit-company/</uri>
+            <uri>https://test.bloggy.io/creator/rabbit-company/</uri>
         </author>
     </entry>
     <entry>
         <title type="html"><![CDATA[Why you should use a Yubikey to secure your accounts]]></title>
-        <id>https://bloggy.io/creator/rabbit-company/en/why-you-should-use-a-yubikey-to-secure-your-accounts</id>
-        <link href="https://bloggy.io/creator/rabbit-company/en/why-you-should-use-a-yubikey-to-secure-your-accounts"/>
+        <id>https://test.bloggy.io/creator/rabbit-company/en/why-you-should-use-a-yubikey-to-secure-your-accounts</id>
+        <link href="https://test.bloggy.io/creator/rabbit-company/en/why-you-should-use-a-yubikey-to-secure-your-accounts"/>
         <updated>2023-01-07T00:00:00.000Z</updated>
         <summary type="html"><![CDATA[YubiKey is a simple and effective way to secure your online accounts. It provides an extra layer of security, is easy to use, portable, durable, and offers secure storage in case it is lost.]]></summary>
         <author>
             <name>Rabbit Company</name>
             <email>info@rabbit-company.com</email>
-            <uri>https://bloggy.io/creator/rabbit-company/</uri>
+            <uri>https://test.bloggy.io/creator/rabbit-company/</uri>
         </author>
     </entry>
 </feed>
