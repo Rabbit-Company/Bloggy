@@ -1,6 +1,5 @@
 let paths;
 let username;
-let html = null;
 let request;
 let env;
 const cache = caches.default;
