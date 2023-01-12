@@ -1,6 +1,7 @@
 let paths;
 let username;
 let html = null;
+const cache = caches.default;
 
 export async function onRequest(context) {
   paths = context.params.username;
@@ -21,7 +22,7 @@ export async function onRequest(context) {
     if(res) html = await res.text();
     if(html != null) return new Response(html, { headers: { 'content-type': 'text/html;charset=UTF-8' }});
     // Pull from KV
-    html = await context.env.KV.get("content-" + username);
+    html = await context.env.KV.get(key);
     if(html === null) return Response.redirect(context.env.DOMAIN, 301);
     return new Response(html, { headers: { 'content-type': 'text/html;charset=UTF-8' }});
   }
