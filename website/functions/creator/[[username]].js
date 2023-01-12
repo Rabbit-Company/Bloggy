@@ -50,5 +50,16 @@ export async function onRequest(context) {
     return Response.redirect(env.DOMAIN, 301);
   }
 
+  let file = paths[1];
+
+  if(paths.length == 2){
+    if(file === 'feed.rss'){
+      let key = "rss-" + username;
+      let rss = await getValue(key);
+      if(rss !== null) return new Response(rss, { headers: { 'content-type': 'application/rss+xml' }});
+      return Response.redirect(env.DOMAIN, 301);
+    }
+  }
+
   return new Response(JSON.stringify(context.params.username))
 }
