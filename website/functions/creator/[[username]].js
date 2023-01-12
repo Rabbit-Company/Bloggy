@@ -8,6 +8,12 @@ async function serveFile(id, type){
 
 export async function onRequest(context) {
   paths = context.params.username;
+
+  // Creator Page
+  if(paths.length == 0){
+    return Response.redirect(context.env.DOMAIN, 301);
+  }
+
   username = paths[0];
 
   // User Main Page
