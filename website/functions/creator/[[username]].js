@@ -13,7 +13,7 @@ export async function onRequest(context) {
   // User Main Page
   if(paths.length == 1){
     html = await context.env.KV.get("content-" + username);
-    if(html == null) return Response.redirect('/', 301);
+    if(html == null) return Response.redirect(context.env.DOMAIN, 301);
     return new Response(html, { headers: { 'content-type': 'text/html;charset=UTF-8' }});
   }
 
