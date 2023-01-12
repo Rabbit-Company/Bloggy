@@ -10,7 +10,7 @@ export async function onRequest(context) {
   paths = context.params.username;
 
   // Creator Page
-  if(paths.length == 0){
+  if(typeof(paths) === 'undefined'){
     return Response.redirect(context.env.DOMAIN, 301);
   }
 
