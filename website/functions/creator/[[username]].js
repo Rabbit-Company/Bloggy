@@ -1,6 +1,6 @@
 let paths;
 let username;
-let html;
+let html = null;
 
 async function serveFile(id, type){
 

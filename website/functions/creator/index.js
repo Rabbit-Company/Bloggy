@@ -1,3 +1,3 @@
-export async function onRequest(context) {
+export function onRequest(context) {
   return Response.redirect('/', 301);
 }
