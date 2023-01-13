@@ -72,6 +72,10 @@
   padding-inline-start: 40px;
 }
 
+.markdown li{
+	margin-bottom: 20px;
+}
+
 .markdown pre{
 	padding: 16px;
   overflow: auto;
