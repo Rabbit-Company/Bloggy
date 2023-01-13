@@ -49,18 +49,20 @@ export async function onRequest(context) {
 
   // User Main Page
   if(paths.length == 1){
-    return getFile("content-" + username);
+    return getFile("content_" + username);
   }
 
   let file = paths[1];
 
   if(paths.length == 2){
     if(file === 'feed.rss'){
-      return getFile("feed-rss-" + username, 'application/rss+xml');
+      return getFile("feed_rss_" + username, 'application/rss+xml');
     }else if(file === 'feed.atom'){
-      return getFile("feed-atom-" + username, 'application/atom+xml');
+      return getFile("feed_atom_" + username, 'application/atom+xml');
     }else if(file === 'feed.json'){
-      return getFile("feed-json-" + username, 'application/json');
+      return getFile("feed_json_" + username, 'application/json');
+    }else{
+      return getFile("post_" + username + "_" + file);
     }
   }
 
