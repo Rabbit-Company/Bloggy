@@ -34,6 +34,9 @@ async function getFile(key, type = 'text/html;charset=UTF-8', redirect = env.DOM
   if(value !== null){
     let newHeaders = new Headers();
     newHeaders.set('content-type', type);
+    Object.keys(DEFAULT_SECURITY_HEADERS).map(function (name) {
+      newHeaders.set(name, DEFAULT_SECURITY_HEADERS[name]);
+    });
     return new Response(value, { headers: newHeaders});
   }
   return Response.redirect(redirect, 307);
