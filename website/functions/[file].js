@@ -1,5 +1,4 @@
-let paths;
-let username;
+let file;
 let request;
 let env;
 const cache = caches.default;
@@ -30,7 +29,13 @@ async function getFile(key, type = 'text/html;charset=UTF-8', redirect = env.DOM
 export async function onRequest(context) {
   request = context.request;
   env = context.env;
-  paths = context.params.file;
+  file = context.params.file;
+
+  if(file === 'sitemap.xml'){
+    return getFile('sitemap', 'application/xml');
+  }else if(file === 'manifest.json'){
+    return getFile('manifest', 'application/json');
+  }
 
   return new Response(JSON.stringify(paths));
 }
