@@ -29,10 +29,10 @@ async function getValue(key, cacheTime = 600){
 	return value;
 }
 
-async function getFile(key, type = 'text/html;charset=UTF-8'){
+async function getFile(key, type = 'text/html;charset=UTF-8', redirect = env.DOMAIN){
   let value = await getValue(key);
   if(value !== null) return new Response(value, { headers: { 'content-type': type }});
-  return Response.redirect(env.DOMAIN, 307);
+  return Response.redirect(redirect, 307);
 }
 
 export async function onRequest(context) {
@@ -64,9 +64,9 @@ export async function onRequest(context) {
     }else if(file === 'feed.json'){
       return getFile("feed_json_" + username, 'application/json');
     }else{
-      return getFile("post_" + username + "_" + file);
+      return getFile("post_" + username + "_" + file, 'text/html;charset=UTF-8', env.DOMAIN + "/creator/" + username);
     }
   }
 
-  return new Response(JSON.stringify(context.params.username))
+  return Response.redirect(env.DOMAIN, 301);
 }
