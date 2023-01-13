@@ -4,13 +4,14 @@ let request;
 let env;
 const cache = caches.default;
 
-async function setValue(key, value, expirationTime = 86400, cacheTime = 600){
-	let cacheKey = request.url + "?key=" + key;
-	await env.KV.put(key, value, { expirationTtl: expirationTime });
-	let nres = new Response(value);
-	nres.headers.append('Cache-Control', 's-maxage=' + cacheTime);
-	await cache.put(cacheKey, nres);
-}
+const DEFAULT_SECURITY_HEADERS = {
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "X-XSS-Protection": "1; mode=block",
+  "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://storage.googleapis.com/ https://analytics.rabbit-company.com; style-src 'report-sample' 'self'; object-src 'none'; base-uri 'self'; connect-src 'self' https://cdn.bloggy.io https://analytics.rabbit-company.com; font-src 'self'; frame-src 'self'; frame-ancestors 'none'; img-src * 'self' https:; manifest-src 'self'; form-action 'self'; media-src 'self'; worker-src 'self'",
+  "Permissions-Policy": "interest-cohort=()"
+};
 
 async function getValue(key, cacheTime = 600){
 	let value = null;
@@ -31,7 +32,14 @@ async function getValue(key, cacheTime = 600){
 
 async function getFile(key, type = 'text/html;charset=UTF-8', redirect = env.DOMAIN){
   let value = await getValue(key);
-  if(value !== null) return new Response(value, { headers: { 'content-type': type }});
+  if(value !== null){
+    let newHeaders = new Headers();
+    newHeaders.set('content-type', type);
+    Object.keys(DEFAULT_SECURITY_HEADERS).map(function (name) {
+      newHeaders.set(name, DEFAULT_SECURITY_HEADERS[name]);
+    });
+    return new Response(value, { headers: newHeaders});
+  }
   return Response.redirect(redirect, 307);
 }
 
