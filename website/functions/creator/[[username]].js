@@ -55,7 +55,9 @@ export async function onRequest(context) {
   let file = paths[1];
 
   if(paths.length == 2){
-    if(file === 'feed.rss'){
+    if(file === 'metadata.js'){
+      return getFile('metadata_' + username, 'application/javascript');
+    }else if(file === 'feed.rss'){
       return getFile("feed_rss_" + username, 'application/rss+xml');
     }else if(file === 'feed.atom'){
       return getFile("feed_atom_" + username, 'application/atom+xml');
