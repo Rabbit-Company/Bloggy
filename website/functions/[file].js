@@ -55,6 +55,8 @@ export async function onRequest(context) {
     return getFile('robots', 'text/plain;charset=utf-8');
   }else if(file === 'metadata.js'){
     return getFile('metadata', 'application/javascript');
+  }else if(file === 'service-worker.js'){
+    return getFile('service-worker', 'application/javascript');
   }
 
   return Response.redirect(env.DOMAIN, 307);

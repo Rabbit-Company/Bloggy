@@ -2,7 +2,7 @@ var get = window.location.search.substr(1).split("&");
 
 if('serviceWorker' in navigator) {
 	window.addEventListener('load', () => {
-		navigator.serviceWorker.register('/js/service-worker.js');
+		navigator.serviceWorker.register('/service-worker.js');
 	});
 }
 
