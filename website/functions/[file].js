@@ -37,5 +37,5 @@ export async function onRequest(context) {
     return getFile('manifest', 'application/json');
   }
 
-  return new Response(JSON.stringify(paths));
+  return Response.redirect(env.DOMAIN, 307);
 }
