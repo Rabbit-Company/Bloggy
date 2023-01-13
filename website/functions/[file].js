@@ -35,6 +35,10 @@ export async function onRequest(context) {
     return getFile('sitemap', 'application/xml');
   }else if(file === 'manifest.json'){
     return getFile('manifest', 'application/json');
+  }else if(file === 'robots.txt'){
+    return getFile('robots', 'text/plain;charset=utf-8');
+  }else if(file === 'metadata.js'){
+    return getFile('metadata', 'application/javascript');
   }
 
   return Response.redirect(env.DOMAIN, 307);
