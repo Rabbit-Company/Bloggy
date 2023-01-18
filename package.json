@@ -1,7 +1,7 @@
 {
   "name": "bloggy",
   "version": "1.0.0",
-  "description": "Simple blog",
+  "description": "Powerful yet easy-to-use blogging platform for creators",
   "main": "index.js",
   "scripts": {
     "build": "npx tailwindcss -i ./tailwind.css -o ./website/css/tailwind.min.css --minify"
