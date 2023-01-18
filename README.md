@@ -1,8 +1,9 @@
 # Bloggy
-Simple blog written with only HTML, CSS and JavaScript.
 
-Want to become the creator? **Register [HERE](https://github.com/Rabbit-Company/Bloggy/issues/new?assignees=zigazajc007&labels=creator+submission&template=creator-submission.yml&title=Creator+submission)**.
+Welcome to [Bloggy](https://bloggy.io), a powerful yet easy-to-use blogging platform for creators. Our platform allows creators to easily create and manage their own blogs.
 
-Already a creator? **Write your first post [HERE](https://github.com/Rabbit-Company/Bloggy/issues/new?assignees=zigazajc007&labels=post+submission&template=post-submission.yml&title=Post+submission)**.
+Built using cutting-edge technologies such as Cloudflare Pages, Cloudflare Workers, R2, KV and D1, Bloggy offers unparalleled performance, scalability and security.
 
-Bloggy can be hosted on a CDN for free (Cloudflare Pages), providing a fast and reliable experience for our readers. With this setup, we no longer have to worry about scalability, expenses, or downtime, as the blog is served directly from the CDN. This allows us to focus on creating great content, while knowing that our readers will have a seamless experience. We hope you enjoy the bloggy and thank you for your support!
+With [Bloggy](https://bloggy.io), creators can focus on what they do best - creating content - while we take care of the technical details.
+
+If you're ready to take your creative pursuits to the next level, [**REGISTER NOW**](https://panel.bloggy.io/register) and begin sharing your voice with the world. We look forward to seeing what you create with [Bloggy](https://bloggy.io).
