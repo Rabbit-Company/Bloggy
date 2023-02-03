@@ -31,12 +31,12 @@ function isEmailValid(mail){
 }
 
 function isPostValid(id){
-	return Object.keys(posts).includes(id);
+	return Object.keys(POSTS).includes(id);
 }
 
 function isTagValid(tag){
-	for(let i = 0; i < Object.keys(posts).length; i++){
-		if(posts[Object.keys(posts)[i]].tag === tag) return true;
+	for(let i = 0; i < Object.keys(POSTS).length; i++){
+		if(POSTS[Object.keys(POSTS)[i]].tag === tag) return true;
 	}
 	return false;
 }
