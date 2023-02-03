@@ -8,7 +8,7 @@ const DEFAULT_SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "X-XSS-Protection": "1; mode=block",
-  "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://storage.googleapis.com/ https://analytics.bloggy.io; style-src 'report-sample' 'self'; object-src 'none'; base-uri 'self'; connect-src 'self' https://cdn.bloggy.io https://analytics.bloggy.io; font-src 'self'; frame-src 'self'; frame-ancestors 'none'; img-src * 'self' https:; manifest-src 'self'; form-action 'self'; media-src 'self'; worker-src 'self'",
+  "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://storage.googleapis.com/ https://analytics.rabbithop.org; style-src 'report-sample' 'self'; object-src 'none'; base-uri 'self'; connect-src 'self' https://cdn.bloggy.io https://analytics.rabbithop.org; font-src 'self'; frame-src 'self'; frame-ancestors 'none'; img-src * 'self' https:; manifest-src 'self'; form-action 'self'; media-src 'self'; worker-src 'self'",
   "Permissions-Policy": "interest-cohort=()"
 };
 
