@@ -27,11 +27,11 @@ function changePostArray(method = "tag", target){
 	});
 
 	postIDs = newPostArray;
-	lastPostIndex = (postIDs.length - 10 < 0) ? (postIDs.length - 1) : 8;
+	lastPostIndex = (postIDs.length - 10 < 0) ? (postIDs.length - 1) : 9;
 }
 
-let postIDs = Object.keys(POSTS).reverse();
-let lastPostIndex = (postIDs.length - 10 < 0) ? (postIDs.length - 1) : 8;
+let postIDs = Object.keys(POSTS);
+let lastPostIndex = (postIDs.length - 10 < 0) ? (postIDs.length - 1) : 9;
 
 let providedTag = get[0].replaceAll("tag=", "").replaceAll("_", " ");
 let providedSearch = get[0].replaceAll("search=", "").replaceAll("_", " ");
