@@ -17,6 +17,6 @@
   },
   "homepage": "https://github.com/Rabbit-Company/Bloggy#readme",
   "devDependencies": {
-    "tailwindcss": "^3.2.4"
+    "tailwindcss": "^3.3.5"
   }
 }
