@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "Powerful yet easy-to-use blogging platform for creators",
   "main": "index.js",
-  "scripts": {
-    "build": "npx tailwindcss -i ./tailwind.css -o ./website/css/tailwind.min.css --minify"
-  },
+  "scripts": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Rabbit-Company/Bloggy.git"
@@ -15,8 +13,5 @@
   "bugs": {
     "url": "https://github.com/Rabbit-Company/Bloggy/issues"
   },
-  "homepage": "https://github.com/Rabbit-Company/Bloggy#readme",
-  "devDependencies": {
-    "tailwindcss": "^3.3.5"
-  }
+  "homepage": "https://github.com/Rabbit-Company/Bloggy#readme"
 }
