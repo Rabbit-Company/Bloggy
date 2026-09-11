@@ -1,6 +1,7 @@
 services:
   bloggy:
     image: rabbitcompany/bloggy:latest
+    container_name: bloggy
     restart: unless-stopped
     ports:
       - "3000:3000"
