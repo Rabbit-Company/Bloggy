@@ -192,11 +192,16 @@ Authors preview their own posts at `/preview/:slug`. That is a separate path fro
 An administrator is an ordinary account carrying a flag, so moderation uses the same sign-in, two-factor and CSRF protection as everything else rather than a shared secret pasted into a browser.
 
 ```bash
-bun run promote <username>
+bun run promote <username>       # from a checkout
 bun run demote <username>
+
+./bloggy promote <username>      # from the built binary
+docker exec -it bloggy ./bloggy promote <username>
 ```
 
-Both need shell access to the server, which is the right bar for handing out moderation powers. Demoting the last administrator is refused, so an instance cannot lock itself out.
+The commands are compiled into the server binary as well as the scripts, because a deployed container holds that binary alone with no Bun and no source. Running one while the server is up is safe.
+
+All of them need shell access to the server, which is the right bar for handing out moderation powers. Demoting the last administrator is refused, so an instance cannot lock itself out.
 
 The **Moderation** screen lists every account with its post count, storage used, registration date and last activity, sortable by any of them, which is how an account consuming far more than the rest is found. From there an administrator can:
 

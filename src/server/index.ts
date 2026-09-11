@@ -22,6 +22,7 @@ import { panelRoutes } from "./routes/panel.ts";
 import { analyticsRoutes } from "./routes/analytics.ts";
 import { csrfGuard } from "./middleware/csrf.ts";
 import { startBackupSchedule } from "./lib/backup.ts";
+import { isAdminCommand, readUsername, runAdminCommand } from "./lib/admin-cli.ts";
 import { renderErrorPage } from "./ssr/pages.ts";
 import type { AppMiddleware, AppState } from "./types.ts";
 
@@ -158,6 +159,11 @@ function startMaintenance(): ReturnType<typeof setInterval> {
 }
 
 if (import.meta.main) {
+	const [command, ...rest] = process.argv.slice(2);
+	if (isAdminCommand(command)) {
+		process.exit(await runAdminCommand(command, readUsername(rest)));
+	}
+
 	await connect();
 	await migrate();
 
