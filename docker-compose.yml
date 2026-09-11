@@ -1,0 +1,20 @@
+services:
+  bloggy:
+    build: .
+    image: bloggy:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite://./data/bloggy.sqlite
+      STORAGE_PATH: ./data/media
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

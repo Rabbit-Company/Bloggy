@@ -1,0 +1,40 @@
+{
+	"name": "bloggy",
+	"version": "1.0.0",
+	"description": "Easy-to-use blogging platform for creators",
+	"type": "module",
+	"license": "EUPL-1.2",
+	"author": "Rabbit Company <info@rabbit-company.com>",
+	"homepage": "https://github.com/Rabbit-Company/Bloggy",
+	"funding": "https://rabbit-company.com/donation",
+	"private": true,
+	"scripts": {
+		"dev": "bun run scripts/dev.ts",
+		"start": "bun run src/server/index.ts",
+		"build": "bun run scripts/build.ts",
+		"build:panel": "bun run scripts/build.ts --panel-only",
+		"migrate": "bun run src/server/db/migrate.ts",
+		"keygen": "bun run src/server/lib/keygen.ts",
+		"promote": "bun run scripts/promote.ts",
+		"demote": "bun run scripts/promote.ts --demote",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit",
+		"format": "prettier --write \"src/**/*.ts\" \"src/**/*.css\" \"tests/**/*.ts\" \"scripts/**/*.ts\""
+	},
+	"dependencies": {
+		"@rabbit-company/blake2b": "^2.1.0",
+		"@rabbit-company/openmetrics-client": "^2.0.1",
+		"@rabbit-company/password-entropy": "^2.1.0",
+		"@rabbit-company/password-generator": "^2.2.0",
+		"@rabbit-company/qrcode": "^1.1.0",
+		"@rabbit-company/totp": "^1.0.1",
+		"@rabbit-company/web": "^0.18.2",
+		"@rabbit-company/web-middleware": "^0.18.2",
+		"@rabbit-company/xchacha20": "^2.3.0"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"prettier": "^3.6.2",
+		"typescript": "^5.9.3"
+	}
+}

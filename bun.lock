@@ -1,0 +1,60 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "bloggy",
+      "dependencies": {
+        "@rabbit-company/blake2b": "^2.1.0",
+        "@rabbit-company/openmetrics-client": "^2.0.1",
+        "@rabbit-company/password-entropy": "^2.1.0",
+        "@rabbit-company/password-generator": "^2.2.0",
+        "@rabbit-company/qrcode": "^1.1.0",
+        "@rabbit-company/totp": "^1.0.1",
+        "@rabbit-company/web": "^0.18.2",
+        "@rabbit-company/web-middleware": "^0.18.2",
+        "@rabbit-company/xchacha20": "^2.3.0",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "prettier": "^3.6.2",
+        "typescript": "^5.9.3",
+      },
+    },
+  },
+  "packages": {
+    "@rabbit-company/blake2b": ["@rabbit-company/blake2b@2.1.0", "", { "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-dxETRoVBMWmJFuJcfo/zF7QlfYAmT733Efwuok5K4bmb/T/Mq8V2HbwM4+N9OiK727ofRv1BPkWsJs2dvgz1DQ=="],
+
+    "@rabbit-company/logger": ["@rabbit-company/logger@5.6.1", "", { "peerDependencies": { "typescript": "^5.9.3" } }, "sha512-U/OvLzzkHgTUupgeMsnBHjJVbFfVIt4Nj643rraq/mKpIEmGUVsUGJi1Gin2Tw95vJ8pB/kNYVxtZi9FKO+mIw=="],
+
+    "@rabbit-company/openmetrics-client": ["@rabbit-company/openmetrics-client@2.0.1", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-JJr8reWZwTr5vvq1txc2jEgDkLKJ/QAref8W7C7pP7fdmy1qltpu9Ujrbqariq/pJb3qTj0y89krlYZSgh/YvA=="],
+
+    "@rabbit-company/password-entropy": ["@rabbit-company/password-entropy@2.1.0", "", { "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-SXxjLQcMfweUkQDHxo1YLt/lsKlMBXZ1dSh4cST+N7ydgkz+dN12UkRVj5mAGgrmN5bSB32KSrhND4DMiwvNcQ=="],
+
+    "@rabbit-company/password-generator": ["@rabbit-company/password-generator@2.2.0", "", { "peerDependencies": { "typescript": "^5.6.2" } }, "sha512-vGTQatvHhJPsBZZaW/V276+YwmL6ThaBuN0vSeJwGIW9YBoW5glQ+sXRPZDhOAkGy0K3AbwZ6TmP+svrAn5Gkw=="],
+
+    "@rabbit-company/qrcode": ["@rabbit-company/qrcode@1.1.0", "", {}, "sha512-sGLGpMxYLy6ASW73q+CRZWVU30GfrHYMF4DUy8vPdCLaL8eG1TL6cyLadiH2D0BKM7n87M25yGROju2Z+LZf5A=="],
+
+    "@rabbit-company/rate-limiter": ["@rabbit-company/rate-limiter@3.0.1", "", { "peerDependencies": { "typescript": "^5.8.3" } }, "sha512-Wj32TPksbohww7fMbERjjSAApA9fdsneRtIpfQmY/W/BfGA9BbO08wKA1tezoVHuYEMUCwjUjaRZxjEYGMxTOw=="],
+
+    "@rabbit-company/totp": ["@rabbit-company/totp@1.0.1", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-37/cOVcmLXkUI5bhIMoXcZqWxBPsdmvAZNkfZs09K0qqfcS50CtUkqVSOiBfpntpf4Sq4fCvWteBQaLHpKD2EQ=="],
+
+    "@rabbit-company/web": ["@rabbit-company/web@0.18.2", "", {}, "sha512-8BIEIS7hsH67Z1D/r/11o50tNuyNlMOvEtCyeVFWHbWRAFMbXtQEWHrfoQHejUnrXxzBnFuDhd9/9iQ5q++sNA=="],
+
+    "@rabbit-company/web-middleware": ["@rabbit-company/web-middleware@0.18.2", "", { "dependencies": { "@rabbit-company/logger": "^5.6.1", "@rabbit-company/rate-limiter": "^3.0.1" }, "peerDependencies": { "@rabbit-company/web": "^0.18.2" } }, "sha512-byp5hH3Ab1GiicCCYof4hoN5IAoBEoEV6wa0OA/Jvr0Ep4C6e2let/4oMz0ARpLEFkJ3oPmAmXooLtwf8bXrJw=="],
+
+    "@rabbit-company/xchacha20": ["@rabbit-company/xchacha20@2.3.0", "", { "peerDependencies": { "typescript": "^5.6.2" } }, "sha512-d2itZPlgb+Sxpdi9jBMGEfenQQyQwdynxw6pkgoDXth6y236c9NGxi8Y5k12tlE6l0vhzwRcrmfL/DpOIOnSRg=="],
+
+    "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
+
+    "@types/node": ["@types/node@26.5.0", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-dVSGpriSoCgz8WnDNTuSSuSv1PC/ALXihO4ulRZt7Md8k9mlbdin3lGOcDE8SnWOgf513ByWlXd7BK4azmyg/A=="],
+
+    "bun-types": ["bun-types@1.4.2", "", { "dependencies": { "@types/node": "*" } }, "sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w=="],
+
+    "prettier": ["prettier@3.9.6", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g=="],
+
+    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
+    "undici-types": ["undici-types@8.9.0", "", {}, "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg=="],
+  }
+}

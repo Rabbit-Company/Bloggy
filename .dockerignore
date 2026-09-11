@@ -1,0 +1,12 @@
+node_modules
+dist
+public/panel
+data
+.git
+.env
+*.md
+tests
+Bloggy
+Bloggy-Panel
+bloggy-api
+bloggy-engine
