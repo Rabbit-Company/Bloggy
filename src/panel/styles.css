@@ -136,6 +136,14 @@ img {
 	font-size: 1.1rem;
 	color: var(--text);
 }
+.brand:hover {
+	color: var(--accent);
+}
+.brand:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 3px;
+	border-radius: 6px;
+}
 .brand svg {
 	width: 1.6rem;
 	height: 1.6rem;

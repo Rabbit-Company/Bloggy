@@ -163,9 +163,21 @@ export async function deleteCreator(username: string): Promise<void> {
  * Suspended creators are excluded: this feeds the public landing page, and a
  * suspended blog must not be linked from it.
  */
-export async function listCreators(limit = 100): Promise<CreatorRow[]> {
+export async function listCreators(limit = 100, category?: string): Promise<CreatorRow[]> {
+	if (category !== undefined) {
+		return (await sql`SELECT * FROM creators WHERE suspended_at IS NULL AND category = ${category}
+			ORDER BY accessed_at DESC LIMIT ${limit}`) as CreatorRow[];
+	}
+
 	return (await sql`SELECT * FROM creators WHERE suspended_at IS NULL
 		ORDER BY accessed_at DESC LIMIT ${limit}`) as CreatorRow[];
+}
+
+/** Categories currently represented by at least one public creator. */
+export async function listCreatorCategories(): Promise<string[]> {
+	const rows = (await sql`SELECT DISTINCT category FROM creators
+		WHERE suspended_at IS NULL ORDER BY category ASC`) as { category: string }[];
+	return rows.map((row) => row.category);
 }
 
 export async function countCreators(): Promise<number> {

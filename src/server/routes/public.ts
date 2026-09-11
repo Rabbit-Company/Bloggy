@@ -1,12 +1,12 @@
 import { Web } from "@rabbit-company/web";
 import { config } from "../config.ts";
 import { ApiError, ErrorCode } from "../lib/errors.ts";
-import { isPostTagValid, isSlugValid, isUsernameValid } from "../lib/validation.ts";
-import { findCreator, isSuspended, listCreators } from "../db/creators.ts";
+import { isCategoryValid, isPostTagValid, isSlugValid, isUsernameValid } from "../lib/validation.ts";
+import { findCreator, isSuspended, listCreatorCategories, listCreators } from "../db/creators.ts";
 import { countPublishedByCreator, findPost, findPublishedPost, listAllPostRefs, listPublishedByCreator, type PostFilter } from "../db/posts.ts";
 import { sql } from "../db/index.ts";
 import { publicCache } from "../middleware/cache.ts";
-import { requireAuth } from "../middleware/auth.ts";
+import { findSignedInCreator, requireAuth } from "../middleware/auth.ts";
 import { ok } from "../lib/response.ts";
 import type { PublicConfig } from "../../shared/constants.ts";
 import { analyticsEnabled } from "../lib/burrowgate.ts";
@@ -59,7 +59,9 @@ export function publicRoutes(app: Web<AppState>): void {
 	});
 
 	app.get("/", publicCache(), async (ctx) => {
-		return ctx.html(renderMainPage(await listCreators(60)));
+		const topic = readTopic(ctx.req.url);
+		const [creators, topics, viewer] = await Promise.all([listCreators(60, topic), listCreatorCategories(), findSignedInCreator(ctx.req)]);
+		return ctx.html(renderMainPage(creators, topics, topic, viewer ?? undefined));
 	});
 
 	app.get("/creator/:username", publicCache(), async (ctx) => {
@@ -189,6 +191,11 @@ function readFilter(rawUrl: string): PostFilter {
 	if (search.length > 0) return { search: search.slice(0, MAX_SEARCH_LENGTH) };
 
 	return {};
+}
+
+function readTopic(rawUrl: string): string | undefined {
+	const topic = new URL(rawUrl).searchParams.get("topic")?.trim() ?? "";
+	return isCategoryValid(topic) ? topic : undefined;
 }
 
 async function requireCreator(username: string | undefined) {

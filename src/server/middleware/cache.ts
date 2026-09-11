@@ -112,7 +112,7 @@ function hasUnboundedQuery(req: Request): boolean {
 }
 
 export function publicCache(ttl: number = config.cache.ttl): AppMiddleware {
-	return cache<AppState>({
+	const middleware = cache<AppState>({
 		storage: pageCache,
 		ttl,
 		methods: ["GET", "HEAD"],
@@ -130,6 +130,17 @@ export function publicCache(ttl: number = config.cache.ttl): AppMiddleware {
 		shouldCache: (ctx, res) =>
 			res.status === 200 && !ctx.req.headers.has("Authorization") && readCookie(ctx.req, SESSION_COOKIE) === null && !hasUnboundedQuery(ctx.req),
 	});
+
+	// `shouldCache` prevents a private response from being stored, but the
+	// upstream cache checks for an existing public response before it calls that
+	// predicate. Bypass lookup as well, so a session-aware public page can reach
+	// its handler and render the signed-in navigation.
+	return async (ctx, next) => {
+		if (ctx.req.headers.has("Authorization") || readCookie(ctx.req, SESSION_COOKIE) !== null) {
+			return await next();
+		}
+		return await middleware(ctx, next);
+	};
 }
 
 export function invalidateCreator(username: string): void {

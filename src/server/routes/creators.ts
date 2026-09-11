@@ -1,6 +1,5 @@
 import { Web } from "@rabbit-company/web";
 import { bodyLimit } from "@rabbit-company/web-middleware/body-limit";
-import { cache } from "@rabbit-company/web-middleware/cache";
 import { config } from "../config.ts";
 import { ApiError, ErrorCode } from "../lib/errors.ts";
 import { jsonBody, ok, requireFields } from "../lib/response.ts";

@@ -8,6 +8,7 @@ import {
 	isAdmin,
 	isSuspended,
 	listCreatorOverview,
+	listCreatorCategories,
 	listCreators,
 	setAdmin,
 	setSuspended,
@@ -153,6 +154,20 @@ describe("the moderation table", () => {
 });
 
 describe("suspension", () => {
+	test("filters the public directory by creator category", async () => {
+		await sql`UPDATE creators SET category = ${"Technology"} WHERE username = ${"light"}`;
+		expect((await listCreators(100, "Technology")).map((c) => c.username)).toEqual(["light"]);
+		expect((await listCreators(100, "Business")).map((c) => c.username)).not.toContain("light");
+	});
+
+	test("only lists categories represented by public creators", async () => {
+		await sql`UPDATE creators SET category = ${"Technology"} WHERE username = ${"light"}`;
+		expect(await listCreatorCategories()).toEqual(["Business", "Technology"]);
+
+		await setSuspended("light", true);
+		expect(await listCreatorCategories()).toEqual(["Business"]);
+	});
+
 	test("records when, and lifting clears it", async () => {
 		await setSuspended("light", true);
 		expect(isSuspended((await findCreator("light"))!)).toBe(true);

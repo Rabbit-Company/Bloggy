@@ -31,7 +31,7 @@ const outlet = el("main");
 function shell(): HTMLElement {
 	const creator = getCreator();
 
-	const brand = el("div", { class: "brand" });
+	const brand = el("a", { class: "brand", href: "/", "aria-label": "Bloggy home" });
 	brand.innerHTML = LOGO;
 	brand.append(document.createTextNode("Bloggy"));
 

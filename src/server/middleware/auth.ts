@@ -1,5 +1,5 @@
 import { ApiError, ErrorCode } from "../lib/errors.ts";
-import { findCreator, isAdmin, isSuspended } from "../db/creators.ts";
+import { findCreator, isAdmin, isSuspended, type CreatorRow } from "../db/creators.ts";
 import { resolveSession } from "../auth/sessions.ts";
 import { config } from "../config.ts";
 import { safeEqual } from "../lib/crypto.ts";
@@ -31,6 +31,22 @@ export function credentials(req: Request): { token: string; source: AuthSource }
 	if (cookie !== null && cookie.length > 0) return { token: cookie, source: "cookie" };
 
 	return null;
+}
+
+/**
+ * Resolves an active creator when a public page wants to adapt its navigation
+ * without turning an absent or stale session into an authentication error.
+ */
+export async function findSignedInCreator(req: Request): Promise<CreatorRow | null> {
+	const found = credentials(req);
+	if (found === null) return null;
+
+	const session = await resolveSession(found.token);
+	if (session === null) return null;
+
+	const creator = await findCreator(session.username);
+	if (creator === null || isSuspended(creator)) return null;
+	return creator;
 }
 
 export function requireAuth(): AppMiddleware {

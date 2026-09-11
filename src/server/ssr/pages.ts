@@ -39,31 +39,100 @@ function themeOf(creator: CreatorRow): string {
 	return creator.theme === "dark" || creator.theme === "light" ? creator.theme : "auto";
 }
 
-export function renderMainPage(creators: CreatorRow[]): string {
+function topicUrl(topic?: string): string {
+	return topic === undefined ? "/" : `/?topic=${encodeURIComponent(topic)}`;
+}
+
+function renderTopicFilters(topics: string[], activeTopic?: string): string {
+	const filters = [
+		`<a class="topic-pill${activeTopic === undefined ? " active" : ""}" href="/"${activeTopic === undefined ? ' aria-current="page"' : ""}>All topics</a>`,
+		...topics.map(
+			(topic) =>
+				`<a class="topic-pill${topic === activeTopic ? " active" : ""}" href="${escapeHtml(topicUrl(topic))}"${topic === activeTopic ? ' aria-current="page"' : ""}>${escapeHtml(topic)}</a>`,
+		),
+	].join("\n");
+
+	return `<nav class="topic-filter" aria-label="Filter creators by topic">
+	<div class="topic-filter-heading">
+		<div>
+			<span class="section-kicker">Discover</span>
+			<h2>Find your next favorite creator</h2>
+		</div>
+		${activeTopic === undefined ? "" : `<a class="clear-topic" href="/">Clear filter</a>`}
+	</div>
+	<div class="topic-pills">${filters}</div>
+</nav>`;
+}
+
+export function renderMainPage(creators: CreatorRow[], topics: string[] = [], activeTopic?: string, viewer?: Pick<CreatorRow, "username">): string {
 	const cards = creators
 		.map(
-			(creator) => `<li>
-	<a href="/creator/${escapeHtml(creator.username)}"><img src="${escapeHtml(avatarUrl(creator.username))}" alt="${escapeHtml(creator.author)}" loading="lazy" width="128" height="128"></a>
-	<h3><a href="/creator/${escapeHtml(creator.username)}">${escapeHtml(creator.author)}</a></h3>
-	<p>${escapeHtml(creator.title)}</p>
+			(creator) => `<li class="creator-card">
+	<a class="creator-avatar" href="/creator/${escapeHtml(creator.username)}"><img src="${escapeHtml(avatarUrl(creator.username))}" alt="" loading="lazy" width="128" height="128"></a>
+	<div class="creator-card-body">
+		<a class="creator-topic" href="${escapeHtml(topicUrl(creator.category))}">${escapeHtml(creator.category)}</a>
+		<h3><a href="/creator/${escapeHtml(creator.username)}">${escapeHtml(creator.author)}</a></h3>
+		<p>${escapeHtml(creator.title)}</p>
+		<a class="view-blog" href="/creator/${escapeHtml(creator.username)}">View blog <span aria-hidden="true">&rarr;</span></a>
+	</div>
 </li>`,
 		)
 		.join("\n");
 
-	const body = `<main class="wrap">
-<header class="masthead">
-	<h1><a href="/">${escapeHtml(config.site.title)}</a></h1>
-	<p>${escapeHtml(config.site.description)}</p>
-	${siteSocial()}
+	const primaryAction =
+		viewer !== undefined
+			? `<a class="home-button primary" href="/panel">Go to your panel <span aria-hidden="true">&rarr;</span></a>`
+			: config.limits.registrationEnabled
+				? `<a class="home-button primary" href="/panel/register">Create your blog <span aria-hidden="true">&rarr;</span></a>`
+				: "";
+	const accountActions =
+		viewer === undefined
+			? `<a class="home-login" href="/panel">Sign in</a>
+		${config.limits.registrationEnabled ? `<a class="home-button compact" href="/panel/register">Create account</a>` : ""}`
+			: `<a class="home-login" href="/creator/${escapeHtml(viewer.username)}">My blog</a>
+		<a class="home-button compact" href="/panel">Open panel</a>`;
+	const empty = activeTopic === undefined ? "No blogs published yet." : `No creators are writing about ${escapeHtml(activeTopic)} yet.`;
+	const title = activeTopic === undefined ? config.site.title : `${activeTopic} blogs · ${config.site.title}`;
+	const canonical = `${domain}${topicUrl(activeTopic)}`;
+
+	const body = `<main class="home-wrap">
+<header class="home-header">
+	<a class="home-brand" href="/" aria-label="${escapeHtml(config.site.title)} home">
+		<img src="/assets/logo.svg" alt="" width="36" height="36">
+		<span>${escapeHtml(config.site.title)}</span>
+	</a>
+	<nav class="home-account" aria-label="Account">
+		${accountActions}
+	</nav>
 </header>
-${creators.length === 0 ? `<p class="empty">No blogs published yet.</p>` : `<ul class="creators">\n${cards}\n</ul>`}
+<section class="home-hero">
+	<div class="hero-copy">
+		<span class="hero-eyebrow">Independent voices, all in one place</span>
+		<h1>Stories worth reading.<br><span>People worth following.</span></h1>
+		<p>${escapeHtml(config.site.description)} Explore thoughtful blogs by topic, or start sharing ideas of your own.</p>
+		<div class="hero-actions">
+			${primaryAction}
+			<a class="home-button secondary" href="#creators">Explore creators</a>
+		</div>
+	</div>
+	<div class="hero-mark" aria-hidden="true">
+		<span class="hero-orbit one"></span>
+		<span class="hero-orbit two"></span>
+		<div class="hero-logo"><img src="/assets/logo.svg" alt="" width="132" height="132"></div>
+	</div>
+</section>
+<section class="creator-directory" id="creators">
+	${renderTopicFilters(topics, activeTopic)}
+	${creators.length === 0 ? `<div class="directory-empty"><p>${empty}</p>${activeTopic === undefined ? "" : `<a href="/">Browse all creators</a>`}</div>` : `<ul class="creators">\n${cards}\n</ul>`}
+</section>
+<div class="home-social">${siteSocial()}</div>
 </main>`;
 
 	return renderPage(
 		{
-			title: config.site.title,
+			title,
 			description: config.site.description,
-			url: domain,
+			url: canonical,
 			language: config.site.language,
 			image: `${domain}/assets/logo.png`,
 			icon: `${domain}/assets/logo.svg`,
