@@ -28,13 +28,13 @@
 		"@rabbit-company/password-generator": "^2.2.0",
 		"@rabbit-company/qrcode": "^1.1.0",
 		"@rabbit-company/totp": "^1.0.1",
-		"@rabbit-company/web": "^0.18.2",
-		"@rabbit-company/web-middleware": "^0.18.2",
+		"@rabbit-company/web": "^0.19.0",
+		"@rabbit-company/web-middleware": "^0.19.0",
 		"@rabbit-company/xchacha20": "^2.3.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"prettier": "^3.6.2",
-		"typescript": "^5.9.3"
+		"typescript": "^7.0.2"
 	}
 }
