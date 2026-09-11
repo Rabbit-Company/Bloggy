@@ -89,7 +89,7 @@ Every setting lives in `.env`. See [.env.example](.env.example), which documents
 | `ENCRYPTION_KEY` | none                            | Required. Encrypts TOTP secrets at rest               |
 | `ADMIN_TOKEN`    | none                            | Guards `/metrics` and the maintenance endpoints       |
 | `API_ORIGINS`    | _(empty)_                       | CORS for external clients. Empty disables it entirely |
-| `TRUST_PROXY`    | `direct`                        | Set to `cloudflare` behind Cloudflare                 |
+| `TRUST_PROXY`    | `direct`                        | Proxy preset, including `cloudflare` and `burrowgate` |
 
 > **`BIND_ADDRESS`, not `HOSTNAME`.** Bash and every Docker container already export `HOSTNAME`, and a real environment variable takes precedence over `.env` in Bun. Using that name would silently bind the server to the machine's hostname instead of all interfaces.
 

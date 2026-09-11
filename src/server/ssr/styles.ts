@@ -105,7 +105,7 @@ img { max-width: 100%; height: auto; }
 .social a:hover { color: var(--text); }
 .social svg { width: 1.5rem; height: 1.5rem; }
 
-.search { display: block; width: 100%; max-width: 32rem; margin: 0 auto 1.5rem; padding: 0.7rem 1rem;
+.search { display: block; width: 100%; margin: 0 auto 1.5rem; padding: 0.7rem 1rem;
 	font: inherit; font-size: 1.25rem; color: var(--text); background: var(--surface);
 	border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 /* No detached outline ring. The border takes the accent colour instead,
