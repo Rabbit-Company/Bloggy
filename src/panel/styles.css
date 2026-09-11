@@ -13,6 +13,7 @@
 	--success: #059669;
 	--success-soft: #ecfdf5;
 	--warning: #d97706;
+	--warning-soft: #fffbeb;
 	--scroll-track: #e4e4e4;
 	--scroll-thumb: #b3b3b3;
 	--scroll-thumb-hover: #999999;
@@ -39,6 +40,7 @@
 		--success: #34d399;
 		--success-soft: #0d2620;
 		--warning: #fbbf24;
+		--warning-soft: #2a2008;
 		--scroll-track: #161b22;
 		--scroll-thumb: #3d4451;
 		--scroll-thumb-hover: #57606d;
@@ -362,9 +364,60 @@ textarea.code {
 	background: transparent;
 	border-color: var(--border);
 }
+.button.warning {
+	background: var(--warning);
+	color: #fff;
+}
+
 .button.small {
 	padding: 0.35rem 0.7rem;
 	font-size: 0.85rem;
+}
+
+.button.small,
+.button.quiet {
+	background: transparent;
+	border-color: var(--border);
+	color: var(--muted);
+}
+.button.small:hover,
+.button.quiet:hover {
+	background: var(--surface-2);
+	color: var(--text);
+	filter: none;
+}
+.button.small.primary,
+.button.quiet.primary {
+	background: transparent;
+	color: var(--accent);
+}
+.button.small.primary:hover,
+.button.quiet.primary:hover {
+	background: var(--accent-soft);
+	border-color: var(--accent);
+	color: var(--accent);
+}
+.button.small.warning,
+.button.quiet.warning {
+	background: transparent;
+	color: var(--warning);
+}
+.button.small.warning:hover,
+.button.quiet.warning:hover {
+	background: var(--warning-soft);
+	border-color: var(--warning);
+	color: var(--warning);
+}
+.button.small.danger,
+.button.quiet.danger {
+	background: transparent;
+	color: var(--danger);
+}
+.button.small.danger:hover,
+.button.quiet.danger:hover {
+	background: var(--danger-soft);
+	border-color: var(--danger);
+	color: var(--danger);
 }
 
 .actions {

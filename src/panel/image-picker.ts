@@ -67,7 +67,7 @@ export function previewImage(item: MediaItem, onDeleted?: () => void): void {
 	});
 
 	sheet((close) => {
-		const remove = el("button", { type: "button", class: "button danger" }, "Delete");
+		const remove = el("button", { type: "button", class: "button quiet danger" }, "Delete");
 		remove.addEventListener("click", async () => {
 			const ok = await confirm({
 				title: "Delete this image?",
@@ -106,15 +106,15 @@ export function previewImage(item: MediaItem, onDeleted?: () => void): void {
 					{ class: "preview-actions" },
 					el(
 						"button",
-						{ type: "button", class: "button primary", onClick: () => void copyText(imageMarkdown(item), "Markdown copied. Paste it into your post.") },
+						{ type: "button", class: "button quiet primary", onClick: () => void copyText(imageMarkdown(item), "Markdown copied. Paste it into your post.") },
 						"Copy Markdown",
 					),
 					el(
 						"button",
-						{ type: "button", class: "button ghost", onClick: () => void copyText(item.id, "Image ID copied. Paste it into a post's cover field.") },
+						{ type: "button", class: "button quiet", onClick: () => void copyText(item.id, "Image ID copied. Paste it into a post's cover field.") },
 						"Copy ID",
 					),
-					el("button", { type: "button", class: "button ghost", onClick: () => void copyText(item.url, "Image URL copied.") }, "Copy URL"),
+					el("button", { type: "button", class: "button quiet", onClick: () => void copyText(item.url, "Image URL copied.") }, "Copy URL"),
 					onDeleted !== undefined && remove,
 					el("button", { type: "button", class: "button ghost", onClick: close }, "Close"),
 				),

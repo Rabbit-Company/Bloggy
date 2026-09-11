@@ -75,7 +75,7 @@ function actions(row: AdminCreator, reload: () => void): HTMLElement {
 
 	const suspended = row.suspendedAt !== null;
 
-	const toggle = el("button", { class: "button small" }, suspended ? "Restore" : "Suspend");
+	const toggle = el("button", { class: `button small${suspended ? "" : " warning"}` }, suspended ? "Restore" : "Suspend");
 	toggle.addEventListener("click", async () => {
 		if (!suspended) {
 			const ok = await confirm({

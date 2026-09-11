@@ -39,7 +39,7 @@ async function confirmRestore(backup: Backup): Promise<boolean> {
 function row(backup: Backup, reload: () => void): HTMLElement {
 	const download = el("a", { class: "button small", href: api.backupUrl(backup.name), download: backup.name }, "Download");
 
-	const restore = el("button", { class: "button small" }, "Restore");
+	const restore = el("button", { class: "button small warning" }, "Restore");
 	restore.addEventListener("click", async () => {
 		if (!(await confirmRestore(backup))) return;
 		restore.disabled = true;
