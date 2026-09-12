@@ -53,7 +53,7 @@ src/
     middleware/    auth, CSRF, cache, metrics, envelope
     lib/           config, crypto, storage, backups, validation, errors
   panel/           the creator panel (client-side app)
-    views/         sign-in, posts, editor, images, analytics, settings, moderation, backups
+    views/         sign-in, posts, editor, images, team, analytics, settings, moderation, backups
   shared/          values both sides must agree on
 scripts/           dev runner, build, admin promotion
 tests/
@@ -80,16 +80,22 @@ Bloggy is built so a blog is fully indexable without any work from the creator.
 
 Every setting lives in `.env`. See [.env.example](.env.example), which documents each one. The essentials:
 
-| Variable         | Default                         | Notes                                                 |
-| ---------------- | ------------------------------- | ----------------------------------------------------- |
-| `PORT`           | `3000`                          |                                                       |
-| `BIND_ADDRESS`   | `0.0.0.0`                       | Not `HOSTNAME`, see below                             |
-| `DOMAIN`         | `http://localhost:3000`         | Public origin, and decides the cookie's `Secure` flag |
-| `DATABASE_URL`   | `sqlite://./data/bloggy.sqlite` | `sqlite://`, `postgres://`, `mysql://`, `mariadb://`  |
-| `ENCRYPTION_KEY` | none                            | Required. Encrypts TOTP secrets at rest               |
-| `ADMIN_TOKEN`    | none                            | Guards `/metrics` and the maintenance endpoints       |
-| `API_ORIGINS`    | _(empty)_                       | CORS for external clients. Empty disables it entirely |
-| `TRUST_PROXY`    | `direct`                        | Proxy preset, including `cloudflare` and `burrowgate` |
+| Variable                 | Default                         | Notes                                                 |
+| ------------------------ | ------------------------------- | ----------------------------------------------------- |
+| `PORT`                   | `3000`                          |                                                       |
+| `BIND_ADDRESS`           | `0.0.0.0`                       | Not `HOSTNAME`, see below                             |
+| `DOMAIN`                 | `http://localhost:3000`         | Public origin, and decides the cookie's `Secure` flag |
+| `DATABASE_URL`           | `sqlite://./data/bloggy.sqlite` | `sqlite://`, `postgres://`, `mysql://`, `mariadb://`  |
+| `ENCRYPTION_KEY`         | none                            | Required. Encrypts TOTP secrets at rest               |
+| `ADMIN_TOKEN`            | none                            | Guards `/metrics` and the maintenance endpoints       |
+| `API_ORIGINS`            | _(empty)_                       | CORS for external clients. Empty disables it entirely |
+| `TRUST_PROXY`            | `direct`                        | Proxy preset, including `cloudflare` and `burrowgate` |
+| `SMTP_HOST`              | _(empty)_                       | Enables account email when set with `SMTP_FROM`       |
+| `SMTP_PORT`              | `587`                           | SMTP server port                                      |
+| `SMTP_SECURE`            | `false`                         | Use implicit TLS, normally with port 465              |
+| `SMTP_REQUIRE_TLS`       | `true`                          | Require STARTTLS when implicit TLS is off             |
+| `SMTP_FROM`              | _(empty)_                       | Sender name/address for transactional emails          |
+| `EMAIL_CONFIRMATION_TTL` | `86400`                         | Lifetime of registration confirmation links           |
 
 > **`BIND_ADDRESS`, not `HOSTNAME`.** Bash and every Docker container already export `HOSTNAME`, and a real environment variable takes precedence over `.env` in Bun. Using that name would silently bind the server to the machine's hostname instead of all interfaces.
 
@@ -120,14 +126,22 @@ Avatars and post images go to the local filesystem by default. Set `STORAGE_DRIV
 
 ## Authentication
 
-Creators sign in against an argon2id hash (`Bun.password`). A session then travels two ways:
+Owners and collaborators sign in against an argon2id hash (`Bun.password`). A session then travels two ways:
 
-- **The panel** gets a `Secure; HttpOnly; SameSite=Lax` cookie. JavaScript cannot read it, so an XSS bug in the panel cannot steal the session. This is only possible because the panel is served from the same origin as the API.
+- **The panel** gets a cookie with `Secure`, `HttpOnly`, and `SameSite=Lax`. JavaScript cannot read it, so an XSS bug in the panel cannot steal the session. This is only possible because the panel is served from the same origin as the API.
 - **Scripts and other clients** send `Authorization: Bearer <token>`, returned by `POST /api/v1/auth/login`. A header the client sets on purpose always wins over a cookie the browser attaches on its own.
 
 Writes that rely on the cookie also pass a CSRF check. `SameSite=Lax` already stops browsers attaching the cookie to a cross-site POST, and the server independently requires such requests to declare an `Origin` it owns. Bearer requests are exempt, because a cross-origin page cannot set that header without CORS allowing it.
 
 Two-factor authentication is TOTP, with ten single-use backup codes. Secrets and codes are encrypted at rest with XChaCha20. A backup code is consumed the first time it is used.
+
+### Account email
+
+Transactional email is opt-in. Password reset and email confirmation controls are absent from the panel and their APIs refuse requests until both `SMTP_HOST` and `SMTP_FROM` are configured. `SMTP_USER` and `SMTP_PASSWORD` may both be left empty for a trusted local relay. Otherwise, both are required. Set `SMTP_SECURE=true` for implicit TLS, normally on port 465. Port 587 normally keeps it `false` and upgrades with STARTTLS. `SMTP_REQUIRE_TLS` defaults to `true`. Only disable it for a trusted relay that cannot use TLS.
+
+When SMTP is enabled, a new creator must confirm their email before signing in. Pending accounts do not appear on the homepage, creator pages or public creator API. Confirmation links are stored only as hashes, expire after `EMAIL_CONFIRMATION_TTL` seconds (24 hours by default), and are consumed only after the person explicitly confirms in the panel so automated email scanners cannot use them. Existing accounts are marked verified by the migration. If SMTP is later disabled, a pending account is verified on its next successful password login instead of becoming permanently inaccessible.
+
+Reset requests ask for the sign-in username, which keeps collaborator accounts unambiguous even when several accounts share an email address. The API always returns the same response for existing, unknown and recently requested usernames. Tokens are stored only as hashes, expire after `PASSWORD_RESET_TTL` seconds (one hour by default), work once, and revoke every session after use. Two-factor authentication remains enabled after a password reset. Confirmation, reset and invitation links place their tokens in URL fragments, which browsers do not send in HTTP requests. The panel removes the fragment from the address bar immediately and submits the token in a JSON request body.
 
 ## API
 
@@ -146,6 +160,12 @@ Every JSON endpoint returns the same envelope:
 | `POST`   | `/api/v1/auth/logout`                      | Revoke the current session         |
 | `GET`    | `/api/v1/auth/me`                          | Current creator                    |
 | `POST`   | `/api/v1/auth/password`                    | Change password                    |
+| `POST`   | `/api/v1/auth/password-reset/request`      | Email a one-use reset link         |
+| `POST`   | `/api/v1/auth/password-reset/validate`     | Validate a reset link              |
+| `POST`   | `/api/v1/auth/password-reset/complete`     | Set a new password                 |
+| `POST`   | `/api/v1/auth/email-confirmation/request`  | Resend a confirmation link         |
+| `POST`   | `/api/v1/auth/email-confirmation/validate` | Validate a confirmation link       |
+| `POST`   | `/api/v1/auth/email-confirmation/confirm`  | Confirm the account email          |
 | `GET`    | `/api/v1/auth/sessions`                    | List active sessions               |
 | `DELETE` | `/api/v1/auth/sessions[/:id]`              | Revoke one, or all others          |
 | `POST`   | `/api/v1/auth/2fa/begin\|confirm\|disable` | TOTP enrolment                     |
@@ -155,6 +175,13 @@ Every JSON endpoint returns the same envelope:
 | `GET`    | `/api/v1/posts/:slug`                      | One of your posts, with markdown   |
 | `PUT`    | `/api/v1/posts/:slug`                      | Edit, publish or unpublish         |
 | `DELETE` | `/api/v1/posts/:slug`                      | Delete a post                      |
+| `POST`   | `/api/v1/posts/:slug/request-changes`      | Return a reviewed post with a note |
+| `GET`    | `/api/v1/team`                             | Members and pending invitations    |
+| `POST`   | `/api/v1/team/invitations`                 | Create a seven-day invite link     |
+| `POST`   | `/api/v1/team/invitations/lookup`          | Read a valid invitation            |
+| `POST`   | `/api/v1/team/invitations/accept`          | Accept an invitation               |
+| `PUT`    | `/api/v1/team/members/:username`           | Change a collaborator's role       |
+| `DELETE` | `/api/v1/team/members/:username`           | Remove a collaborator              |
 | `POST`   | `/api/v1/preview`                          | Render markdown for the editor     |
 | `GET`    | `/api/v1/media`                            | Your images, with storage used     |
 | `PUT`    | `/api/v1/media`                            | Upload an image (raw body)         |
@@ -167,7 +194,7 @@ Every JSON endpoint returns the same envelope:
 | `GET`    | `/api/v1/creators[/:username]`             | Public creator directory           |
 | `GET`    | `/api/v1/config`                           | Instance limits, read by the panel |
 
-Create and edit accept `"status": "draft" | "published"`, defaulting to `published`. See [Drafts](#drafts).
+Create and edit accept `"status": "draft" | "review" | "changes" | "published"`, defaulting to `published`. The server permits transitions according to the signed-in account's role. See [Collaboration](#collaboration).
 
 ## Reading a blog
 
@@ -177,11 +204,21 @@ A creator page lists the newest posts twelve at a time. The next page is a plain
 
 **Tags** filter the same listing. Every post card links to its own tag, which gives readers a way to find more on the same topic and search engines something to index.
 
-## Drafts
+## Collaboration
 
-A post is either a **draft** or **published**. Drafts are filtered out in SQL on every public surface, covering the blog, feeds, the sitemap and the public JSON API, so a draft URL 404s exactly as a missing post does and its existence is not observable from outside.
+An owner can create a one-use invitation from the panel's **Team** screen. The recipient chooses a personal username and password, so the owner's credentials never need to be shared. Invitations expire after seven days and only their hashes are stored.
 
-Draft validation is deliberately loose. A draft needs only a title, because refusing to save unfinished work would defeat the point. The full rules (150+ words, a description, a cover image, keywords) apply the moment you publish.
+- **Writers** create and edit their own unpublished posts, upload images and submit work for review. They cannot publish.
+- **Editors** can also edit every unpublished post, but still cannot publish.
+- **Publishers** can review, request changes with a note, publish, unpublish and manage every post.
+
+Only the owner can change the blog profile, manage the team, view analytics, configure two-factor authentication or delete the blog. Removing a member immediately revokes all of their sessions while leaving their work in the blog.
+
+## Drafts and review
+
+A post is **draft**, **in review**, **changes requested**, or **published**. Every unpublished state is filtered out in SQL on every public surface, covering the blog, feeds, the sitemap and the public JSON API, so its URL 404s exactly as a missing post does and its existence is not observable from outside.
+
+Draft and changes-requested validation is deliberately loose. A work in progress needs only a title, because refusing to save unfinished work would defeat the point. The full rules (150+ words, a description, a cover image, keywords) apply when it is submitted for review or published.
 
 `published_at` is set the first time a post goes public and never moves afterwards, so correcting a typo does not push the post back to the top of every feed. Feeds and structured data date posts by `published_at`, while `created_at` remains the row's creation date.
 
@@ -259,15 +296,17 @@ Four tabs: traffic over time, most read pages, countries (with a world map), and
 
 Bloggy **refuses rather than guesses**. BurrowGate reports back which pages it measured, using `pathPrefix` for a whole blog and `path` for a single page, and a reply that does not match what was asked for is thrown away with an error asking the operator to upgrade. A gateway predating these parameters would otherwise silently answer with the whole site, showing one creator everyone else's pages.
 
-The world map ships with the panel (`/panel/assets/world.svg`), so it renders without a round trip to the gateway.
+The world map ships as a content-fingerprinted panel asset, so it renders without a round trip to the gateway.
 
 Without those variables the page, its nav item and its routes do not exist at all.
 
 ## Caching
 
-Rendered pages and public API reads are cached in memory (`CACHE_TTL`, default 5 minutes). Repeat visitors get a small "nothing has changed" reply instead of the whole page, and once an entry ages out the old copy is still served while a fresh one is prepared, so nobody waits. Publishing, editing, unpublishing or deleting a post clears that creator's pages plus the shared landing page and sitemap, rather than the whole cache.
+Rendered pages and public API reads are cached in memory (`CACHE_TTL`, default 5 minutes). Repeat visitors get a small "nothing has changed" reply instead of the whole page, and once an entry ages out the old copy is still served while a fresh one is prepared, so nobody waits. Publishing, editing, unpublishing or deleting a post clears that creator's pages plus the shared landing page and sitemap, rather than the whole cache. Browsers revalidate HTML while shared caches can retain it for `CACHE_TTL` seconds through `s-maxage`.
 
-Nothing is cached for a request that carried credentials, whether a bearer token _or_ the session cookie. The cookie half matters. Since the panel is served from this origin, a signed-in creator browsing their own blog sends a cookie and no `Authorization` header, so checking only the header would let a per-viewer response into a cache every reader shares.
+Deploy-time CSS, JavaScript and logo assets use content hashes in their filenames. They are cached for one year with `immutable`, because changed content always receives a new URL. The unversioned public asset paths remain as revalidated aliases for older cached pages. The panel index is generated with its current hashed bundle names during every build.
+
+Nothing is cached for a request that carried credentials, whether a bearer token _or_ the session cookie. Those responses explicitly use `private, no-store`, and public responses vary on both credentials. The cookie half matters. Since the panel is served from this origin, a signed-in creator browsing their own blog sends a cookie and no `Authorization` header, so checking only the header would let a per-viewer response into a cache every reader shares.
 
 Search results are never cached, because anyone can type anything into the box, and caching every phrase would let one visitor fill the store with entries nobody reads twice.
 

@@ -1,7 +1,7 @@
 import { api, type Post, type PostInput } from "../api.ts";
 import { CATEGORIES, LANGUAGES, POST_MAX_WORDS, POST_MIN_WORDS, instanceConfig } from "../constants.ts";
 import { getCreator } from "../session.ts";
-import { compressImage, el, render, setHtml, slugify, toast } from "../ui.ts";
+import { compressImage, confirm, el, render, setHtml, slugify, toast } from "../ui.ts";
 import { navigate, panelUrl } from "../router.ts";
 import type { PostStatus } from "../../shared/constants.ts";
 import { imageMarkdown, pickImage } from "../image-picker.ts";
@@ -27,6 +27,7 @@ export async function renderEditor(root: HTMLElement, params: Record<string, str
 	const editingSlug = params.slug;
 	const isEdit = typeof editingSlug === "string" && editingSlug.length > 0;
 	const creator = getCreator();
+	const canPublish = creator?.membership?.canPublish ?? true;
 
 	let existing: Post | null = null;
 	if (isEdit) {
@@ -35,6 +36,18 @@ export async function renderEditor(root: HTMLElement, params: Record<string, str
 			existing = (await api.post(editingSlug)).post;
 		} catch (err) {
 			render(root, el("div", { class: "empty" }, err instanceof Error ? err.message : "Could not load that post."));
+			return;
+		}
+		if (existing.status === "published" && creator?.membership && !creator.membership.canPublish) {
+			render(
+				root,
+				el(
+					"div",
+					{ class: "empty" },
+					el("p", {}, "Published posts are read-only for your role."),
+					el("a", { class: "button primary", href: `/creator/${encodeURIComponent(creator.username)}/${encodeURIComponent(existing.slug)}` }, "View post"),
+				),
+			);
 			return;
 		}
 	}
@@ -165,9 +178,19 @@ export async function renderEditor(root: HTMLElement, params: Record<string, str
 	}
 
 	const startedPublished = existing?.status === "published";
+	const isReview = existing?.status === "review";
+	const hasChangesRequested = existing?.status === "changes";
 
-	const saveDraft = el("button", { class: "button ghost" }, startedPublished ? "Unpublish" : "Save draft");
-	const save = el("button", { class: "button primary" }, startedPublished ? "Save changes" : "Publish");
+	const saveDraft = el(
+		"button",
+		{ class: "button ghost" },
+		canPublish && isReview ? "Request changes" : startedPublished ? "Unpublish" : hasChangesRequested ? "Save changes" : "Save draft",
+	);
+	const save = el(
+		"button",
+		{ class: "button primary" },
+		canPublish ? (startedPublished ? "Save changes" : "Publish") : hasChangesRequested ? "Resubmit for review" : "Submit for review",
+	);
 
 	async function submit(status: PostStatus): Promise<void> {
 		const input: PostInput = {
@@ -193,10 +216,17 @@ export async function renderEditor(root: HTMLElement, params: Record<string, str
 			if (isEdit) await api.updatePost(input);
 			else await api.createPost(input);
 
-			toast(
-				status === "draft" ? (startedPublished ? "Post unpublished. It is now a draft." : "Draft saved.") : isEdit ? "Changes saved." : "Post published.",
-				"success",
-			);
+			const message =
+				status === "review"
+					? "Post submitted for review."
+					: status === "draft" || status === "changes"
+						? startedPublished
+							? "Post unpublished. It is now a draft."
+							: "Work saved."
+						: isEdit
+							? "Changes saved."
+							: "Post published.";
+			toast(message, "success");
 			navigate("/posts");
 		} catch (err) {
 			toast(err instanceof Error ? err.message : "Could not save the post.", "error");
@@ -206,15 +236,40 @@ export async function renderEditor(root: HTMLElement, params: Record<string, str
 		}
 	}
 
-	save.addEventListener("click", () => void submit("published"));
-	saveDraft.addEventListener("click", () => void submit("draft"));
+	async function requestChanges(): Promise<void> {
+		if (existing === null) return;
+		const note = el("textarea", { rows: "4", maxlength: "500", placeholder: "Explain what should be revised…" });
+		const approved = await confirm({
+			title: "Request changes",
+			body: [el("p", {}, "Your note will appear beside the post for the writer."), note],
+			confirmLabel: "Send back to writer",
+		});
+		if (!approved) return;
+		if (note.value.trim().length === 0) {
+			toast("Add a note explaining the requested changes.", "error");
+			return;
+		}
+		try {
+			await api.requestChanges(existing.slug, note.value.trim());
+			toast("Changes requested.", "success");
+			navigate("/posts");
+		} catch (err) {
+			toast(err instanceof Error ? err.message : "Could not request changes.", "error");
+		}
+	}
+
+	save.addEventListener("click", () => void submit(canPublish ? "published" : "review"));
+	saveDraft.addEventListener("click", () => {
+		if (canPublish && isReview) void requestChanges();
+		else void submit(hasChangesRequested ? "changes" : "draft");
+	});
 
 	const onKey = (event: KeyboardEvent) => {
 		if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
 			event.preventDefault();
 			// Ctrl+S never changes what the public can see: it keeps a draft a
 			// draft, and saves edits to an already published post in place.
-			void submit(startedPublished ? "published" : "draft");
+			void submit(startedPublished && canPublish ? "published" : hasChangesRequested ? "changes" : existing?.status === "review" ? "review" : "draft");
 		}
 	};
 	document.addEventListener("keydown", onKey);
@@ -240,7 +295,11 @@ export async function renderEditor(root: HTMLElement, params: Record<string, str
 					{},
 					isEdit ? "Edit post" : "New post",
 					existing !== null &&
-						el("span", { class: `badge ${existing.status === "draft" ? "draft" : "on"}` }, existing.status === "draft" ? "Draft" : "Published"),
+						el(
+							"span",
+							{ class: `badge ${existing.status}` },
+							{ draft: "Draft", review: "In review", changes: "Changes requested", published: "Published" }[existing.status],
+						),
 				),
 				el("p", {}, isEdit ? `Editing /${existing?.slug ?? ""}` : "Write in Markdown. The preview is rendered by the server."),
 			),
@@ -255,6 +314,9 @@ export async function renderEditor(root: HTMLElement, params: Record<string, str
 				save,
 			),
 		),
+		existing?.status === "changes" &&
+			existing.reviewNote.length > 0 &&
+			el("div", { class: "review-banner" }, el("strong", {}, "Reviewer requested changes"), el("p", {}, existing.reviewNote)),
 
 		el(
 			"div",

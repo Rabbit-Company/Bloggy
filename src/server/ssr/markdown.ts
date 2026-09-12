@@ -76,7 +76,7 @@ function sanitizeUrls(html: string): string {
 
 function markExternalLinks(html: string): string {
 	return html.replace(/<a\b([^>]*?)href="(https?:\/\/[^"]*)"([^>]*)>/gi, (_match, before: string, href: string, after: string) => {
-		return `<a${before}href="${href}"${after} target="_blank" rel="ugc nofollow noopener noreferrer">`;
+		return `<a${before}href="${href}"${after} target="_blank" rel="ugc nofollow noopener">`;
 	});
 }
 

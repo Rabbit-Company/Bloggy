@@ -947,6 +947,24 @@ table.data tr:last-child td {
 	background: color-mix(in srgb, var(--warning) 18%, transparent);
 	color: var(--warning);
 }
+.badge.review {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+.badge.changes {
+	background: var(--danger-soft);
+	color: var(--danger);
+}
+.badge.published {
+	background: var(--success-soft);
+	color: var(--success);
+}
+.invite-role-badge {
+	display: block;
+	width: 100%;
+	margin-bottom: 1rem;
+	text-align: center;
+}
 
 h1 .badge {
 	margin-left: 0.6rem;
@@ -964,6 +982,89 @@ h1 .badge {
 }
 .grid + .section-heading {
 	margin-top: 2rem;
+}
+
+.review-note,
+.review-banner {
+	border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+	background: var(--warning-soft);
+	border-radius: 9px;
+	padding: 0.75rem 0.9rem;
+	color: var(--text);
+}
+.review-note {
+	margin: 0.75rem 0;
+	font-size: 0.86rem;
+}
+.review-note p,
+.review-banner p {
+	margin: 0.2rem 0 0;
+}
+.review-banner {
+	margin: 0 0 1.25rem;
+}
+
+.role-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.8rem;
+	margin-bottom: 1.5rem;
+}
+.role-card {
+	padding: 1rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+}
+.role-card p {
+	margin: 0.25rem 0 0;
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+.invite-form {
+	display: grid;
+	grid-template-columns: minmax(14rem, 2fr) minmax(10rem, 1fr) auto;
+	align-items: end;
+	gap: 0.8rem;
+}
+.invite-form .field {
+	margin: 0;
+}
+.invite-result {
+	margin-top: 1rem;
+}
+.invite-result:empty {
+	display: none;
+}
+.invite-result > p {
+	margin: 0.2rem 0 0.65rem;
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+.invite-link {
+	display: flex;
+	gap: 0.6rem;
+}
+.invite-link input {
+	flex: 1;
+	font-family: var(--font-mono);
+	font-size: 0.82rem;
+}
+.team-pending {
+	margin-top: 2rem;
+}
+.empty.compact {
+	padding: 1.5rem 1rem;
+}
+
+@media (max-width: 700px) {
+	.role-grid,
+	.invite-form {
+		grid-template-columns: 1fr;
+	}
+	.invite-link {
+		flex-direction: column;
+	}
 }
 
 .card-top {

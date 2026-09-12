@@ -1,6 +1,7 @@
 import { config } from "../config.ts";
 import { escapeHtml, escapeJson } from "./markdown.ts";
 import { SOCIAL_LABELS, SOCIAL_PREFIXES } from "../lib/constants.ts";
+import { BLOG_CSS_ASSET } from "../lib/public-assets.ts";
 
 export interface PageMeta {
 	title: string;
@@ -87,7 +88,7 @@ ${article}
 <link rel="canonical" href="${escapeHtml(meta.url)}">
 <link rel="icon" href="${escapeHtml(meta.icon)}">
 ${feeds}
-<link rel="stylesheet" href="/assets/blog.css">
+<link rel="stylesheet" href="${BLOG_CSS_ASSET.path}">
 ${meta.jsonLd === undefined ? "" : `<script type="application/ld+json">${escapeJson(meta.jsonLd)}</script>`}
 ${config.site.analytics}
 </head>
@@ -120,7 +121,7 @@ export function renderSocial(social: Record<string, string>, feedUrl?: string): 
 			if (icon === undefined) return "";
 			const href = platform === "email" ? `mailto:${url}` : url;
 			const label = SOCIAL_LABELS[platform] ?? platform;
-			return `<a href="${escapeHtml(href)}" rel="me noopener noreferrer" target="_blank" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg></a>`;
+			return `<a href="${escapeHtml(href)}" rel="me noopener" target="_blank" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg></a>`;
 		})
 		.join("");
 

@@ -1,7 +1,7 @@
 import { Web } from "@rabbit-company/web";
 import { ApiError, ErrorCode } from "../lib/errors.ts";
 import { ok } from "../lib/response.ts";
-import { requireAuth } from "../middleware/auth.ts";
+import { requireOwner } from "../middleware/auth.ts";
 import {
 	ANALYTICS_HOURS,
 	ANALYTICS_VIEWS,
@@ -34,7 +34,7 @@ async function describePaths(username: string, rows: { label: string; value: num
 export function analyticsRoutes(app: Web<AppState>): void {
 	if (!analyticsEnabled()) return;
 
-	app.get("/api/v1/analytics", requireAuth(), async (ctx) => {
+	app.get("/api/v1/analytics", requireOwner(), async (ctx) => {
 		const query = ctx.query();
 		const view = query.get("view") ?? "overview";
 		const hours = Number.parseInt(query.get("hours") ?? "168", 10);
@@ -66,7 +66,7 @@ export function analyticsRoutes(app: Web<AppState>): void {
 		}
 	});
 
-	app.get("/api/v1/analytics/pages", requireAuth(), async (ctx) => {
+	app.get("/api/v1/analytics/pages", requireOwner(), async (ctx) => {
 		const username = ctx.get("creator").username;
 		const posts = await listPostsByCreator(username);
 

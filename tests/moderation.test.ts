@@ -16,6 +16,8 @@ import {
 } from "../src/server/db/creators.ts";
 import { insertMedia } from "../src/server/db/media.ts";
 import { insertPost, listAllPostRefs, type PostInput } from "../src/server/db/posts.ts";
+import { createApp } from "../src/server/index.ts";
+import { createSession } from "../src/server/auth/sessions.ts";
 
 function account(username: string) {
 	return {
@@ -81,6 +83,24 @@ describe("new accounts", () => {
 		const view = toPublicCreator(row!);
 		expect(view.isAdmin).toBe(false);
 		expect(view.suspendedAt).toBeNull();
+	});
+});
+
+describe("browser and shared cache policy", () => {
+	test("lets shared caches retain anonymous HTML while browsers revalidate it", async () => {
+		const response = await createApp().handle(new Request("http://localhost:3000/"));
+		const cacheControl = response.headers.get("Cache-Control") ?? "";
+		expect(cacheControl).toContain("max-age=0");
+		expect(cacheControl).toContain("s-maxage=300");
+		expect(cacheControl).toContain("stale-while-revalidate=600");
+		expect(response.headers.get("Vary")).toContain("Cookie");
+	});
+
+	test("never lets authenticated HTML enter a shared cache", async () => {
+		const session = await createSession("light");
+		const response = await createApp().handle(new Request("http://localhost:3000/", { headers: { Cookie: `bloggy_session=${session.token}` } }));
+		expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+		expect(response.headers.get("Vary")).toContain("Cookie");
 	});
 });
 
@@ -186,6 +206,18 @@ describe("suspension", () => {
 		expect((await listAllPostRefs()).some((r) => r.username === "light")).toBe(true);
 		await setSuspended("light", true);
 		expect((await listAllPostRefs()).some((r) => r.username === "light")).toBe(false);
+	});
+
+	test("hides posts from suspended and unverified creators in the public JSON API", async () => {
+		await setSuspended("light", true);
+		await sql`UPDATE creators SET email_verified_at = NULL WHERE username = ${"heavy"}`;
+
+		const app = createApp();
+		const suspended = await app.handle(new Request("http://localhost:3000/api/v1/creators/light/posts/only-one"));
+		const unverified = await app.handle(new Request("http://localhost:3000/api/v1/creators/heavy/posts/first"));
+
+		expect(suspended.status).toBe(404);
+		expect(unverified.status).toBe(404);
 	});
 
 	test("leaves other accounts in the sitemap", async () => {

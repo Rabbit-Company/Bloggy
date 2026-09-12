@@ -62,4 +62,20 @@ export enum ErrorCode {
 	BACKUP_UNAVAILABLE = 1115,
 	/** The stored file is not a usable Bloggy database. */
 	BACKUP_INVALID = 1116,
+	/** An invitation cannot be used because it is missing, expired or consumed. */
+	INVITE_INVALID = 1117,
+	/** The supplied collaborator role is not supported. */
+	INVALID_TEAM_ROLE = 1118,
+	/** Password reset email is not configured on this instance. */
+	PASSWORD_RESET_UNAVAILABLE = 1119,
+	/** A password-reset token is missing, expired or already consumed. */
+	PASSWORD_RESET_INVALID = 1120,
+	/** The account cannot sign in until its email address is confirmed. */
+	EMAIL_NOT_CONFIRMED = 1121,
+	/** An email-confirmation token is missing, expired or already consumed. */
+	EMAIL_CONFIRMATION_INVALID = 1122,
+	/** A required account email could not be delivered. */
+	EMAIL_DELIVERY_FAILED = 1123,
+	/** Email confirmation is not configured on this instance. */
+	EMAIL_CONFIRMATION_UNAVAILABLE = 1124,
 }

@@ -1,7 +1,8 @@
 import { clearSession } from "./session.ts";
 import { ErrorCode } from "../shared/errors.ts";
-import type { PostStatus, PublicConfig } from "../shared/constants.ts";
-export type { PostStatus };
+import type { PostStatus, PublicConfig, TeamRole } from "../shared/constants.ts";
+import worldMapUrl from "./assets/world.svg";
+export type { PostStatus, TeamRole };
 
 export const API_URL = "";
 
@@ -78,6 +79,13 @@ export interface Creator {
 	suspendedAt: string | null;
 	createdAt: string;
 	accessedAt: string;
+	membership: {
+		username: string;
+		role: "owner" | TeamRole;
+		isOwner: boolean;
+		canPublish: boolean;
+		canEditAll: boolean;
+	};
 }
 
 export interface Post {
@@ -96,6 +104,25 @@ export interface Post {
 	createdAt: string;
 	publishedAt: string | null;
 	updatedAt: string;
+	createdBy: string;
+	updatedBy: string;
+	reviewNote: string;
+}
+
+export interface TeamMember {
+	username: string;
+	email: string;
+	role: TeamRole;
+	createdAt: string;
+	accessedAt: string;
+}
+
+export interface TeamInvitation {
+	id: string;
+	email: string;
+	role: TeamRole;
+	createdAt: string;
+	expiresAt: string;
 }
 
 export interface PostInput {
@@ -181,7 +208,7 @@ export const api = {
 	},
 
 	register(input: Settings & { username: string; password: string; email: string }) {
-		return request<{ username: string }>("/api/v1/auth/register", { method: "POST", body: json(input) }, false);
+		return request<{ username: string; emailConfirmationRequired: boolean }>("/api/v1/auth/register", { method: "POST", body: json(input) }, false);
 	},
 
 	login(username: string, password: string, otp?: string) {
@@ -190,6 +217,30 @@ export const api = {
 			{ method: "POST", body: json({ username, password, ...(otp ? { otp } : {}) }) },
 			false,
 		);
+	},
+
+	requestPasswordReset(username: string) {
+		return request<{ message: string }>("/api/v1/auth/password-reset/request", { method: "POST", body: json({ username }) }, false);
+	},
+
+	validatePasswordReset(token: string) {
+		return request<{ valid: true }>("/api/v1/auth/password-reset/validate", { method: "POST", body: json({ token }) }, false);
+	},
+
+	resetPassword(token: string, password: string) {
+		return request<void>("/api/v1/auth/password-reset/complete", { method: "POST", body: json({ token, password }) }, false);
+	},
+
+	requestEmailConfirmation(username: string) {
+		return request<{ message: string }>("/api/v1/auth/email-confirmation/request", { method: "POST", body: json({ username }) }, false);
+	},
+
+	validateEmailConfirmation(token: string) {
+		return request<{ valid: true }>("/api/v1/auth/email-confirmation/validate", { method: "POST", body: json({ token }) }, false);
+	},
+
+	confirmEmail(token: string) {
+		return request<void>("/api/v1/auth/email-confirmation/confirm", { method: "POST", body: json({ token }) }, false);
 	},
 
 	logout() {
@@ -326,7 +377,7 @@ export const api = {
 	},
 
 	async worldMap(): Promise<string> {
-		const response = await fetch("/panel/assets/world.svg");
+		const response = await fetch(worldMapUrl);
 		if (!response.ok) throw new ApiError(-1, "The map could not be loaded.");
 		return await response.text();
 	},
@@ -349,6 +400,48 @@ export const api = {
 
 	deletePost(slug: string) {
 		return request<void>(`/api/v1/posts/${encodeURIComponent(slug)}`, { method: "DELETE" });
+	},
+
+	requestChanges(slug: string, note: string) {
+		return request<{ slug: string; status: PostStatus }>(`/api/v1/posts/${encodeURIComponent(slug)}/request-changes`, {
+			method: "POST",
+			body: json({ note }),
+		});
+	},
+
+	team() {
+		return request<{ members: TeamMember[]; invitations: TeamInvitation[] }>("/api/v1/team");
+	},
+
+	inviteTeamMember(email: string, role: TeamRole) {
+		return request<{ invitation: TeamInvitation; inviteUrl: string }>("/api/v1/team/invitations", {
+			method: "POST",
+			body: json({ email, role }),
+		});
+	},
+
+	revokeInvitation(id: string) {
+		return request<void>(`/api/v1/team/invitations/${encodeURIComponent(id)}`, { method: "DELETE" });
+	},
+
+	updateTeamMember(username: string, role: TeamRole) {
+		return request<void>(`/api/v1/team/members/${encodeURIComponent(username)}`, { method: "PUT", body: json({ role }) });
+	},
+
+	removeTeamMember(username: string) {
+		return request<void>(`/api/v1/team/members/${encodeURIComponent(username)}`, { method: "DELETE" });
+	},
+
+	invitation(token: string) {
+		return request<{ email: string; role: TeamRole; blog: { username: string; title: string; author: string }; expiresAt: string }>(
+			"/api/v1/team/invitations/lookup",
+			{ method: "POST", body: json({ token }) },
+			false,
+		);
+	},
+
+	acceptInvitation(token: string, username: string, password: string) {
+		return request<{ blogUsername: string }>("/api/v1/team/invitations/accept", { method: "POST", body: json({ token, username, password }) }, false);
 	},
 
 	preview(markdown: string) {

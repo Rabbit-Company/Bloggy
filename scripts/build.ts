@@ -1,4 +1,5 @@
-import { cp, mkdir, rm } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { basename } from "node:path";
 
 const panelOnly = process.argv.includes("--panel-only");
 const watch = process.argv.includes("--watch");
@@ -17,6 +18,11 @@ export async function buildPanel(quiet = false): Promise<boolean> {
 		minify: !watch,
 		sourcemap: watch ? "linked" : "none",
 		publicPath: "/panel/",
+		naming: {
+			entry: "[name]-[hash].[ext]",
+			chunk: "[name]-[hash].[ext]",
+			asset: "[name]-[hash].[ext]",
+		},
 	});
 
 	if (!result.success) {
@@ -24,9 +30,17 @@ export async function buildPanel(quiet = false): Promise<boolean> {
 		return false;
 	}
 
-	await cp("./src/panel/index.html", `${PANEL_OUT}/index.html`);
+	const script = result.outputs.find((output) => output.kind === "entry-point" && output.path.endsWith(".js"));
+	const stylesheet = result.outputs.find((output) => output.path.endsWith(".css"));
+	if (script === undefined || stylesheet === undefined) {
+		console.error("Panel build did not produce both JavaScript and CSS entry files.");
+		return false;
+	}
+
+	const indexTemplate = await readFile("./src/panel/index.html", "utf8");
+	const index = indexTemplate.replace("/panel/main.css", `/panel/${basename(stylesheet.path)}`).replace("/panel/main.js", `/panel/${basename(script.path)}`);
+	await writeFile(`${PANEL_OUT}/index.html`, index);
 	await cp("./src/panel/favicon.svg", `${PANEL_OUT}/favicon.svg`);
-	await cp("./src/panel/assets", `${PANEL_OUT}/assets`, { recursive: true });
 
 	if (!quiet) {
 		const bytes = result.outputs.reduce((sum, output) => sum + output.size, 0);

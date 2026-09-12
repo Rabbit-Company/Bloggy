@@ -63,7 +63,8 @@ export async function deleteSessionFor(username: string, id: string): Promise<vo
 export async function deleteSessionByPrefix(username: string, prefix: string): Promise<number> {
 	if (!/^[0-9a-f]{16,128}$/.test(prefix)) return 0;
 	const result = await sql`DELETE FROM sessions WHERE username = ${username} AND id LIKE ${`${prefix}%`}`;
-	return Number((result as { affectedRows?: number }).affectedRows ?? 0);
+	const mutation = result as { affectedRows?: number | null; count?: number | null };
+	return Number(mutation.affectedRows ?? mutation.count ?? 0);
 }
 
 export async function deleteSessionsByCreator(username: string): Promise<void> {

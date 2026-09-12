@@ -20,6 +20,10 @@ import { adminRoutes, refreshGauges } from "./routes/admin.ts";
 import { moderationRoutes } from "./routes/moderation.ts";
 import { panelRoutes } from "./routes/panel.ts";
 import { analyticsRoutes } from "./routes/analytics.ts";
+import { teamRoutes } from "./routes/team.ts";
+import { pruneExpiredTeamInvites } from "./db/team.ts";
+import { pruneExpiredPasswordResetTokens } from "./db/password-resets.ts";
+import { pruneExpiredEmailConfirmationTokens } from "./db/email-confirmations.ts";
 import { csrfGuard } from "./middleware/csrf.ts";
 import { startBackupSchedule } from "./lib/backup.ts";
 import { isAdminCommand, readUsername, runAdminCommand } from "./lib/admin-cli.ts";
@@ -49,7 +53,7 @@ function securityHeaders(): AppMiddleware {
 		// A middleware may hand back nothing when it has already written.
 		if (response instanceof Response) {
 			response.headers.set("X-Content-Type-Options", "nosniff");
-			response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+			if (!response.headers.has("Referrer-Policy")) response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 		}
 		return response;
 	};
@@ -68,7 +72,7 @@ export function createApp(): Web<AppState> {
 			logger,
 			preset: "standard",
 			includeRemoteAddress: true,
-			excludePaths: ["/health", "/metrics", "/assets/blog.css"],
+			excludePaths: ["/health", "/metrics", /^\/assets\//],
 		}),
 	);
 
@@ -113,6 +117,7 @@ export function createApp(): Web<AppState> {
 	postRoutes(app);
 	mediaRoutes(app);
 	analyticsRoutes(app);
+	teamRoutes(app);
 	adminRoutes(app);
 	moderationRoutes(app);
 
@@ -146,6 +151,9 @@ function startMaintenance(): ReturnType<typeof setInterval> {
 	const run = async () => {
 		try {
 			await pruneExpiredSessions();
+			await pruneExpiredTeamInvites();
+			await pruneExpiredPasswordResetTokens();
+			await pruneExpiredEmailConfirmationTokens();
 			if (config.metrics.enabled) await refreshGauges();
 		} catch (err) {
 			logger.warn("Maintenance pass failed", { error: String(err) });

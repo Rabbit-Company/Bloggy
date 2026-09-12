@@ -64,6 +64,13 @@ if (storageDriver !== "local" && storageDriver !== "s3") {
 
 const domain = origin("DOMAIN", "http://localhost:3000");
 const apiOriginsRaw = str("API_ORIGINS", "");
+const smtpHost = str("SMTP_HOST", "");
+const smtpFrom = str("SMTP_FROM", "");
+const smtpUser = str("SMTP_USER", "");
+const smtpPassword = str("SMTP_PASSWORD", "");
+if ((smtpUser.length === 0) !== (smtpPassword.length === 0)) {
+	throw new Error("SMTP_USER and SMTP_PASSWORD must either both be set or both be empty.");
+}
 
 export const config = {
 	server: {
@@ -87,6 +94,17 @@ export const config = {
 	secrets: {
 		encryptionKey: required("ENCRYPTION_KEY"),
 		adminToken: str("ADMIN_TOKEN", ""),
+	},
+
+	smtp: {
+		enabled: smtpHost.length > 0 && smtpFrom.length > 0,
+		host: smtpHost,
+		port: Math.max(1, Math.min(65_535, int("SMTP_PORT", 587))),
+		secure: bool("SMTP_SECURE", false),
+		requireTls: bool("SMTP_REQUIRE_TLS", true),
+		user: smtpUser,
+		password: smtpPassword,
+		from: smtpFrom,
 	},
 
 	storage: {
@@ -121,6 +139,8 @@ export const config = {
 		maxAvatarSize: int("MAX_AVATAR_SIZE", 300_000),
 		maxImageSize: int("MAX_IMAGE_SIZE", 1_000_000),
 		maxAccountStorage: int("MAX_ACCOUNT_STORAGE", 100_000_000),
+		passwordResetTtl: Math.max(300, Math.min(86_400, int("PASSWORD_RESET_TTL", 3_600))),
+		emailConfirmationTtl: Math.max(900, Math.min(604_800, int("EMAIL_CONFIRMATION_TTL", 86_400))),
 	},
 
 	/**

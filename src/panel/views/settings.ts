@@ -51,6 +51,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 	}
 
 	const reload = () => void renderSettings(root);
+	const isOwner = creator.membership?.isOwner ?? true;
+	const accountUsername = creator.membership?.username ?? creator.username;
 
 	const title = el("input", { id: "title", maxlength: "30", value: creator.title });
 	const description = el("textarea", { id: "description", maxlength: "160", rows: "3" });
@@ -294,62 +296,74 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 
 	render(
 		root,
-		el("div", { class: "page-head" }, el("div", {}, el("h1", {}, "Settings"), el("p", {}, `Signed in as ${creator.username}`))),
-
-		el(
-			"div",
-			{ class: "card" },
-			el("h2", {}, "Blog"),
-			el("p", { class: "hint" }, "How your blog appears to readers and in search results."),
-			el("div", { class: "row" }, labelled("Title", title), labelled("Author name", author)),
-			labelled("Description", description, "30 to 160 characters."),
-			el("div", { class: "row" }, labelled("Category", category), labelled("Language", language), labelled("Theme", theme)),
-			el("div", { class: "actions" }, saveSettings),
-		),
-
-		el(
-			"div",
-			{ class: "card" },
-			el("h2", {}, "Avatar"),
-			el("p", { class: "hint" }, "Shown on your blog and next to every post."),
+		el("div", { class: "page-head" }, el("div", {}, el("h1", {}, "Settings"), el("p", {}, `Signed in as ${accountUsername}`))),
+		!isOwner &&
 			el(
 				"div",
-				{ class: "actions" },
-				avatarImage,
-				el("button", { class: "button ghost", onClick: () => avatarInput.click() }, "Upload new avatar"),
-				avatarInput,
+				{ class: "review-banner" },
+				el("strong", {}, `${creator.membership.role.charAt(0).toUpperCase()}${creator.membership.role.slice(1)} access`),
+				el("p", {}, `You are collaborating on ${creator.title}. The blog owner manages its public settings and your role.`),
 			),
-		),
 
-		el(
-			"div",
-			{ class: "card" },
-			el("h2", {}, "Links"),
-			el("p", { class: "hint" }, "Shown under your blog's title. Leave a field empty to hide it."),
-			el("div", { class: "row" }, ...socialInputs.map(({ platform, input }) => labelled(platform.label, input))),
-			el("div", { class: "actions" }, saveSocial),
-		),
+		isOwner &&
+			el(
+				"div",
+				{ class: "card" },
+				el("h2", {}, "Blog"),
+				el("p", { class: "hint" }, "How your blog appears to readers and in search results."),
+				el("div", { class: "row" }, labelled("Title", title), labelled("Author name", author)),
+				labelled("Description", description, "30 to 160 characters."),
+				el("div", { class: "row" }, labelled("Category", category), labelled("Language", language), labelled("Theme", theme)),
+				el("div", { class: "actions" }, saveSettings),
+			),
+
+		isOwner &&
+			el(
+				"div",
+				{ class: "card" },
+				el("h2", {}, "Avatar"),
+				el("p", { class: "hint" }, "Shown on your blog and next to every post."),
+				el(
+					"div",
+					{ class: "actions" },
+					avatarImage,
+					el("button", { class: "button ghost", onClick: () => avatarInput.click() }, "Upload new avatar"),
+					avatarInput,
+				),
+			),
+
+		isOwner &&
+			el(
+				"div",
+				{ class: "card" },
+				el("h2", {}, "Links"),
+				el("p", { class: "hint" }, "Shown under your blog's title. Leave a field empty to hide it."),
+				el("div", { class: "row" }, ...socialInputs.map(({ platform, input }) => labelled(platform.label, input))),
+				el("div", { class: "actions" }, saveSocial),
+			),
 
 		el(
 			"div",
 			{ class: "card" },
 			el("h2", {}, "Security"),
 			el("p", { class: "hint" }, "Your email is ", el("strong", {}, creator.email), ", used only for account recovery."),
-			el(
-				"div",
-				{ class: "actions", style: "margin-bottom:1rem" },
-				el("span", {}, "Two-factor authentication "),
-				el("span", { class: `badge ${creator.twoFactorEnabled ? "on" : "off"}` }, creator.twoFactorEnabled ? "Enabled" : "Disabled"),
-				creator.twoFactorEnabled && el("span", { class: "help" }, `${backupCodesRemaining} backup codes left`),
-			),
+			isOwner &&
+				el(
+					"div",
+					{ class: "actions", style: "margin-bottom:1rem" },
+					el("span", {}, "Two-factor authentication "),
+					el("span", { class: `badge ${creator.twoFactorEnabled ? "on" : "off"}` }, creator.twoFactorEnabled ? "Enabled" : "Disabled"),
+					creator.twoFactorEnabled && el("span", { class: "help" }, `${backupCodesRemaining} backup codes left`),
+				),
 			el(
 				"div",
 				{ class: "actions" },
 				el("button", { class: "button ghost", onClick: () => void changePassword() }, "Change password"),
-				creator.twoFactorEnabled
-					? el("button", { class: "button danger", onClick: () => void disableTwoFactor() }, "Disable two-factor")
-					: el("button", { class: "button primary", onClick: () => void enableTwoFactor() }, "Enable two-factor"),
-				creator.twoFactorEnabled && el("button", { class: "button ghost", onClick: () => void newBackupCodes() }, "New backup codes"),
+				isOwner &&
+					(creator.twoFactorEnabled
+						? el("button", { class: "button danger", onClick: () => void disableTwoFactor() }, "Disable two-factor")
+						: el("button", { class: "button primary", onClick: () => void enableTwoFactor() }, "Enable two-factor")),
+				isOwner && creator.twoFactorEnabled && el("button", { class: "button ghost", onClick: () => void newBackupCodes() }, "New backup codes"),
 			),
 		),
 
@@ -385,12 +399,13 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 				),
 		),
 
-		el(
-			"div",
-			{ class: "card", style: "border-color:var(--danger)" },
-			el("h2", {}, "Delete account"),
-			el("p", { class: "hint" }, "Removes your blog, posts, images and history permanently."),
-			el("div", { class: "actions" }, el("button", { class: "button danger", onClick: () => void deleteAccount() }, "Delete my account")),
-		),
+		isOwner &&
+			el(
+				"div",
+				{ class: "card", style: "border-color:var(--danger)" },
+				el("h2", {}, "Delete account"),
+				el("p", { class: "hint" }, "Removes your blog, posts, images and history permanently."),
+				el("div", { class: "actions" }, el("button", { class: "button danger", onClick: () => void deleteAccount() }, "Delete my account")),
+			),
 	);
 }

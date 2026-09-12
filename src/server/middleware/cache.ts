@@ -111,6 +111,32 @@ function hasUnboundedQuery(req: Request): boolean {
 	return new URL(req.url).searchParams.has("search");
 }
 
+function addVary(response: Response, name: string): void {
+	const values = (response.headers.get("Vary") ?? "")
+		.split(",")
+		.map((value) => value.trim())
+		.filter((value) => value.length > 0);
+	if (!values.some((value) => value.toLowerCase() === name.toLowerCase())) values.push(name);
+	response.headers.set("Vary", values.join(", "));
+}
+
+function setBrowserCachePolicy(response: Response, req: Request, ttl: number, isPrivate: boolean): Response {
+	if (isPrivate) {
+		response.headers.set("Cache-Control", "private, no-store");
+	} else if (hasUnboundedQuery(req)) {
+		response.headers.set("Cache-Control", "public, max-age=0, must-revalidate, s-maxage=0");
+	} else {
+		response.headers.set("Cache-Control", `public, max-age=0, must-revalidate, s-maxage=${ttl}, stale-while-revalidate=${ttl * 2}`);
+	}
+
+	// A standards-compliant shared cache now keeps anonymous and signed-in
+	// requests separate. The private response also carries no-store, but Vary
+	// prevents an existing anonymous entry from satisfying a cookie request.
+	addVary(response, "Cookie");
+	addVary(response, "Authorization");
+	return response;
+}
+
 export function publicCache(ttl: number = config.cache.ttl): AppMiddleware {
 	const middleware = cache<AppState>({
 		storage: pageCache,
@@ -136,10 +162,14 @@ export function publicCache(ttl: number = config.cache.ttl): AppMiddleware {
 	// predicate. Bypass lookup as well, so a session-aware public page can reach
 	// its handler and render the signed-in navigation.
 	return async (ctx, next) => {
-		if (ctx.req.headers.has("Authorization") || readCookie(ctx.req, SESSION_COOKIE) !== null) {
-			return await next();
+		const isPrivate = ctx.req.headers.has("Authorization") || readCookie(ctx.req, SESSION_COOKIE) !== null;
+		if (isPrivate) {
+			const response = await next();
+			return response instanceof Response ? setBrowserCachePolicy(response, ctx.req, ttl, true) : response;
 		}
-		return await middleware(ctx, next);
+
+		const response = await middleware(ctx, next);
+		return response instanceof Response ? setBrowserCachePolicy(response, ctx.req, ttl, false) : response;
 	};
 }
 

@@ -8,7 +8,14 @@ function publicUrl(username: string, slug: string): string {
 }
 
 function postCard(post: Post, username: string, onDeleted: () => void): HTMLElement {
+	const membership = getCreator()?.membership;
+	const canEdit =
+		membership === undefined ||
+		membership.isOwner ||
+		membership.role === "publisher" ||
+		(post.status !== "published" && (membership.role === "editor" || post.createdBy === membership.username));
 	const cover = post.picture.startsWith("http") ? post.picture : `/media/images/${username}/${post.picture}`;
+	const statusLabel = { draft: "Draft", review: "In review", changes: "Changes requested", published: "Published" }[post.status];
 
 	async function remove(): Promise<void> {
 		const ok = await confirm({
@@ -35,18 +42,16 @@ function postCard(post: Post, username: string, onDeleted: () => void): HTMLElem
 		el(
 			"div",
 			{ class: "body" },
-			el(
-				"div",
-				{ class: "card-top" },
-				el("span", { class: "tag" }, post.tag || "Untagged"),
-				post.status === "draft" && el("span", { class: "badge draft" }, "Draft"),
-			),
+			el("div", { class: "card-top" }, el("span", { class: "tag" }, post.tag || "Untagged"), el("span", { class: `badge ${post.status}` }, statusLabel)),
 			el("h3", {}, post.title),
-			el("p", { class: "desc" }, post.description),
+			el("p", { class: "desc" }, post.description || "No description yet."),
+			post.status === "changes" &&
+				post.reviewNote.length > 0 &&
+				el("div", { class: "review-note" }, el("strong", {}, "Reviewer note"), el("p", {}, post.reviewNote)),
 			el(
 				"div",
 				{ class: "meta" },
-				el("span", {}, post.status === "draft" ? `Saved ${formatDate(post.updatedAt)}` : formatDate(post.publishedAt ?? post.createdAt)),
+				el("span", {}, post.status === "published" ? formatDate(post.publishedAt ?? post.createdAt) : `Updated ${formatDate(post.updatedAt)}`),
 				el("span", {}, "·"),
 				el("span", {}, `${post.readTime} min read`),
 				el("span", {}, "·"),
@@ -56,11 +61,16 @@ function postCard(post: Post, username: string, onDeleted: () => void): HTMLElem
 		el(
 			"div",
 			{ class: "card-actions" },
-			el("a", { class: "button small primary", href: panelUrl(`/editor/${encodeURIComponent(post.slug)}`) }, "Edit"),
-			post.status === "draft"
+			canEdit &&
+				el(
+					"a",
+					{ class: "button small primary", href: panelUrl(`/editor/${encodeURIComponent(post.slug)}`) },
+					post.status === "review" && membership?.canPublish ? "Review" : "Edit",
+				),
+			post.status !== "published"
 				? el("a", { class: "button small ghost", href: `/preview/${encodeURIComponent(post.slug)}`, target: "_blank", rel: "noopener" }, "Preview")
 				: el("a", { class: "button small ghost", href: publicUrl(username, post.slug), target: "_blank", rel: "noopener" }, "View"),
-			el("button", { class: "button small danger", onClick: () => void remove() }, "Delete"),
+			canEdit && el("button", { class: "button small danger", onClick: () => void remove() }, "Delete"),
 		),
 	);
 }
@@ -82,13 +92,10 @@ export async function renderPosts(root: HTMLElement): Promise<void> {
 
 	const published = posts.filter((post) => post.status === "published");
 	const drafts = posts.filter((post) => post.status === "draft");
+	const reviews = posts.filter((post) => post.status === "review");
+	const changes = posts.filter((post) => post.status === "changes");
 
-	const summary =
-		drafts.length === 0
-			? published.length === 1
-				? "1 published post"
-				: `${published.length} published posts`
-			: `${published.length} published · ${drafts.length} ${drafts.length === 1 ? "draft" : "drafts"}`;
+	const summary = `${published.length} published · ${reviews.length} in review · ${drafts.length + changes.length} in progress`;
 
 	const head = el(
 		"div",
@@ -120,9 +127,13 @@ export async function renderPosts(root: HTMLElement): Promise<void> {
 	render(
 		root,
 		head,
+		reviews.length > 0 && el("h2", { class: "section-heading" }, "Ready for review"),
+		reviews.length > 0 && el("div", { class: "grid" }, ...reviews.map((post) => postCard(post, username, reload))),
+		changes.length > 0 && el("h2", { class: "section-heading" }, "Changes requested"),
+		changes.length > 0 && el("div", { class: "grid" }, ...changes.map((post) => postCard(post, username, reload))),
 		drafts.length > 0 && el("h2", { class: "section-heading" }, "Drafts"),
 		drafts.length > 0 && el("div", { class: "grid" }, ...drafts.map((post) => postCard(post, username, reload))),
-		drafts.length > 0 && published.length > 0 && el("h2", { class: "section-heading" }, "Published"),
+		published.length > 0 && el("h2", { class: "section-heading" }, "Published"),
 		published.length > 0 && el("div", { class: "grid" }, ...published.map((post) => postCard(post, username, reload))),
 	);
 }

@@ -5,6 +5,9 @@ import { deletePostsByCreator } from "../db/posts.ts";
 import { deleteSessionsByCreator } from "../db/sessions.ts";
 import { invalidateCreator } from "../middleware/cache.ts";
 import { logger } from "./logger.ts";
+import { deleteTeamInvites, deleteTeamMembers, listTeamMemberUsernames } from "../db/team.ts";
+import { deletePasswordResetTokens } from "../db/password-resets.ts";
+import { deleteEmailConfirmationTokens } from "../db/email-confirmations.ts";
 
 /**
  * Deletes an account and everything attached to it.
@@ -32,7 +35,16 @@ export async function purgeCreator(username: string, reason: string): Promise<vo
 
 	await deleteMediaByCreator(username);
 	await deletePostsByCreator(username);
+	const members = await listTeamMemberUsernames(username);
+	for (const member of members) {
+		await deleteSessionsByCreator(member);
+		await deletePasswordResetTokens(member);
+	}
+	await deleteTeamInvites(username);
+	await deleteTeamMembers(username);
 	await deleteSessionsByCreator(username);
+	await deletePasswordResetTokens(username);
+	await deleteEmailConfirmationTokens(username);
 	await deleteCreator(username);
 
 	invalidateCreator(username);

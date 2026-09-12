@@ -105,9 +105,13 @@ export const SOCIAL_PLATFORMS = [
 
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number]["key"];
 
-export const POST_STATUSES = ["draft", "published"] as const;
+export const POST_STATUSES = ["draft", "review", "changes", "published"] as const;
 
 export type PostStatus = (typeof POST_STATUSES)[number];
+
+export const TEAM_ROLES = ["writer", "editor", "publisher"] as const;
+
+export type TeamRole = (typeof TEAM_ROLES)[number];
 
 export const SUPPORTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/svg+xml", "image/webp"] as const;
 
@@ -125,6 +129,8 @@ export const PANEL_BASE = "/panel";
 
 export interface PublicConfig {
 	registrationEnabled: boolean;
+	passwordResetEnabled: boolean;
+	emailConfirmationEnabled: boolean;
 	minPasswordEntropy: number;
 	maxAvatarSize: number;
 	maxImageSize: number;

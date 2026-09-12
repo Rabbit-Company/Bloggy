@@ -78,7 +78,8 @@ describe("renderMarkdown", () => {
 
 	test("marks external links as untrusted user content", () => {
 		const html = renderMarkdown("[x](https://example.com)");
-		expect(html).toContain('rel="ugc nofollow noopener noreferrer"');
+		expect(html).toContain('rel="ugc nofollow noopener"');
+		expect(html).not.toContain("noreferrer");
 		expect(html).toContain('target="_blank"');
 	});
 

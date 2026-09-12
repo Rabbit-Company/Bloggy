@@ -4,7 +4,15 @@ import { instanceConfig, setInstanceConfig } from "./constants.ts";
 import { clearSession, getCreator, isSignedIn, setCreator } from "./session.ts";
 import { startRouter, navigate, panelUrl, type Route } from "./router.ts";
 import { el, render, toast } from "./ui.ts";
-import { renderLogin, renderRegister } from "./views/auth.ts";
+import {
+	renderConfirmEmail,
+	renderEmailConfirmationRequest,
+	renderForgotPassword,
+	renderInvite,
+	renderLogin,
+	renderRegister,
+	renderResetPassword,
+} from "./views/auth.ts";
 import { renderPosts } from "./views/posts.ts";
 import { renderEditor } from "./views/editor.ts";
 import { renderImages } from "./views/images.ts";
@@ -12,13 +20,35 @@ import { renderAnalytics } from "./views/analytics.ts";
 import { renderSettings } from "./views/settings.ts";
 import { renderAdmin } from "./views/admin.ts";
 import { renderBackups } from "./views/backups.ts";
+import { renderTeam } from "./views/team.ts";
 
 const app = document.getElementById("app") as HTMLElement;
+
+const initialPathname = location.pathname;
+
+function consumeTokenFragment(path: string): string {
+	if (initialPathname !== panelUrl(path)) return "";
+
+	const fragment = location.hash.slice(1);
+	if (fragment.length === 0) return "";
+	history.replaceState(history.state, "", `${location.pathname}${location.search}`);
+
+	try {
+		return decodeURIComponent(fragment);
+	} catch {
+		return "";
+	}
+}
+
+const resetPasswordToken = consumeTokenFragment("/reset-password");
+const emailConfirmationToken = consumeTokenFragment("/confirm-email");
+const invitationToken = consumeTokenFragment("/invite");
 
 const NAV = [
 	{ href: "/posts", label: "Posts" },
 	{ href: "/images", label: "Images" },
 	{ href: "/analytics", label: "Analytics" },
+	{ href: "/team", label: "Team" },
 	{ href: "/settings", label: "Settings" },
 	{ href: "/admin", label: "Moderation" },
 	{ href: "/backups", label: "Backups" },
@@ -36,8 +66,10 @@ function shell(): HTMLElement {
 	brand.append(document.createTextNode("Bloggy"));
 
 	const items = NAV.filter((item) => {
-		if (item.href === "/analytics") return instanceConfig().analytics !== "none";
-		if (item.href === "/admin" || item.href === "/backups") return creator?.isAdmin === true;
+		const isOwner = creator?.membership?.isOwner ?? true;
+		if (item.href === "/analytics") return isOwner && instanceConfig().analytics !== "none";
+		if (item.href === "/team") return isOwner;
+		if (item.href === "/admin" || item.href === "/backups") return isOwner && creator?.isAdmin === true;
 		return true;
 	});
 
@@ -71,7 +103,7 @@ function shell(): HTMLElement {
 				"a",
 				{ class: `who-link${settingsActive ? " active" : ""}`, href: panelUrl("/settings"), title: "Account settings" },
 				el("img", { src: `/media/avatars/${creator.username}`, alt: "" }),
-				el("span", { class: "who" }, creator.username),
+				el("span", { class: "who" }, creator.membership?.username ?? creator.username),
 			),
 		signOut,
 	);
@@ -119,11 +151,17 @@ const routes: Route[] = [
 			renderRegister(root);
 		},
 	},
+	{ path: "/forgot-password", auth: false, render: (root) => renderForgotPassword(root) },
+	{ path: "/reset-password", auth: false, render: (root) => renderResetPassword(root, resetPasswordToken) },
+	{ path: "/resend-confirmation", auth: false, render: (root) => renderEmailConfirmationRequest(root) },
+	{ path: "/confirm-email", auth: false, render: (root) => renderConfirmEmail(root, emailConfirmationToken) },
+	{ path: "/invite", auth: false, render: (root) => renderInvite(root, invitationToken) },
 	{ path: "/posts", auth: true, render: guard(renderPosts) },
 	{ path: "/editor", auth: true, render: guard(renderEditor) },
 	{ path: "/editor/:slug", auth: true, render: guard(renderEditor) },
 	{ path: "/images", auth: true, render: guard(renderImages) },
 	{ path: "/analytics", auth: true, render: guard(renderAnalytics) },
+	{ path: "/team", auth: true, render: guard(renderTeam) },
 	{ path: "/settings", auth: true, render: guard(renderSettings) },
 	{ path: "/admin", auth: true, render: guard(renderAdmin) },
 	{ path: "/backups", auth: true, render: guard(renderBackups) },

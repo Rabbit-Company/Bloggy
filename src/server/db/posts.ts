@@ -18,6 +18,9 @@ export interface PostRow {
 	created_at: string;
 	published_at: string | null;
 	updated_at: string;
+	created_by: string;
+	updated_by: string;
+	review_note: string;
 }
 
 export type PostSummaryRow = Omit<PostRow, "markdown">;
@@ -53,6 +56,12 @@ export interface Post {
 	updatedAt: string;
 }
 
+export interface PanelPost extends Post {
+	createdBy: string;
+	updatedBy: string;
+	reviewNote: string;
+}
+
 export function toPublicPost(row: PostRow): Post {
 	return {
 		slug: row.slug,
@@ -73,6 +82,15 @@ export function toPublicPost(row: PostRow): Post {
 		createdAt: row.created_at,
 		publishedAt: row.published_at,
 		updatedAt: row.updated_at,
+	};
+}
+
+export function toPanelPost(row: PostRow): PanelPost {
+	return {
+		...toPublicPost(row),
+		createdBy: row.created_by,
+		updatedBy: row.updated_by,
+		reviewNote: row.review_note,
 	};
 }
 
@@ -142,7 +160,7 @@ function filterClause(filter: PostFilter) {
 
 export async function listPublishedByCreator(username: string, limit = 50, offset = 0, filter: PostFilter = {}): Promise<PostSummaryRow[]> {
 	return (await sql`SELECT username, slug, title, description, picture, category, language, tag, keywords,
-			word_count, read_time, status, created_at, published_at, updated_at
+			word_count, read_time, status, created_at, published_at, updated_at, created_by, updated_by, review_note
 		FROM posts
 		WHERE username = ${username} AND status = 'published'
 		${filterClause(filter)}
@@ -159,7 +177,7 @@ export async function countPublishedByCreator(username: string, filter: PostFilt
 
 export async function listRecentPosts(limit = 50): Promise<PostSummaryRow[]> {
 	return (await sql`SELECT username, slug, title, description, picture, category, language, tag, keywords,
-			word_count, read_time, status, created_at, published_at, updated_at
+			word_count, read_time, status, created_at, published_at, updated_at, created_by, updated_by, review_note
 		FROM posts
 		WHERE status = 'published'
 		ORDER BY published_at DESC
@@ -169,7 +187,7 @@ export async function listRecentPosts(limit = 50): Promise<PostSummaryRow[]> {
 export async function listAllPostRefs(): Promise<{ username: string; slug: string; updated_at: string }[]> {
 	return (await sql`SELECT p.username, p.slug, p.updated_at FROM posts p
 		JOIN creators c ON c.username = p.username
-		WHERE p.status = 'published' AND c.suspended_at IS NULL
+		WHERE p.status = 'published' AND c.suspended_at IS NULL AND c.email_verified_at IS NOT NULL
 		ORDER BY p.published_at DESC`) as {
 		username: string;
 		slug: string;
@@ -177,7 +195,7 @@ export async function listAllPostRefs(): Promise<{ username: string; slug: strin
 	}[];
 }
 
-export async function insertPost(username: string, input: PostInput, wordCount: number, readTime: number): Promise<void> {
+export async function insertPost(username: string, input: PostInput, wordCount: number, readTime: number, actorUsername = username): Promise<void> {
 	const timestamp = now();
 	await sql`INSERT INTO posts ${sql({
 		username,
@@ -196,6 +214,9 @@ export async function insertPost(username: string, input: PostInput, wordCount: 
 		created_at: timestamp,
 		published_at: input.status === "published" ? timestamp : null,
 		updated_at: timestamp,
+		created_by: actorUsername,
+		updated_by: actorUsername,
+		review_note: "",
 	})}`;
 }
 
@@ -210,7 +231,8 @@ export async function updatePost(
 	input: PostInput,
 	wordCount: number,
 	readTime: number,
-	previous: Pick<PostRow, "status" | "published_at">,
+	previous: Pick<PostRow, "status" | "published_at" | "review_note">,
+	actorUsername = username,
 ): Promise<void> {
 	const goingPublic = input.status === "published" && previous.published_at === null;
 
@@ -228,7 +250,14 @@ export async function updatePost(
 		status: input.status,
 		published_at: goingPublic ? now() : previous.published_at,
 		updated_at: now(),
+		updated_by: actorUsername,
+		review_note: input.status === "review" || input.status === "published" ? "" : previous.review_note,
 	})} WHERE username = ${username} AND slug = ${input.slug}`;
+}
+
+export async function requestPostChanges(username: string, slug: string, note: string, actorUsername: string): Promise<void> {
+	await sql`UPDATE posts SET status = 'changes', review_note = ${note}, updated_by = ${actorUsername}, updated_at = ${now()}
+		WHERE username = ${username} AND slug = ${slug}`;
 }
 
 export async function deletePost(username: string, slug: string): Promise<void> {

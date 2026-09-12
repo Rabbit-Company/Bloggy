@@ -58,6 +58,8 @@ export function mediaRoutes(app: Web<AppState>): void {
 	});
 
 	app.delete("/api/v1/media/:id", requireAuth(), async (ctx) => {
+		const actor = ctx.get("actor");
+		if (!actor.isOwner && !actor.canEditAll) throw new ApiError(ErrorCode.UNAUTHORIZED, "Writers cannot delete shared images.");
 		const id = ctx.params.id ?? "";
 		assertValid(id, isUuidValid, ErrorCode.INVALID_IMAGE_NAME);
 

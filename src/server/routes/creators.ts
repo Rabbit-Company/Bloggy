@@ -6,20 +6,20 @@ import { jsonBody, ok, requireFields } from "../lib/response.ts";
 import { assertValid, isImageTypeSupported, isOtpValid, isSocialValid, isUsernameValid } from "../lib/validation.ts";
 import { uuid, verifyPassword } from "../lib/crypto.ts";
 import { avatarKey, avatarUrl, storage } from "../lib/storage.ts";
-import { findCreator, isSuspended, listCreators, toPublicCreator, updateAvatarType, updateSettings, updateSocial } from "../db/creators.ts";
+import { findCreator, isEmailVerified, isSuspended, listCreators, toPublicCreator, updateAvatarType, updateSettings, updateSocial } from "../db/creators.ts";
 import { listPublishedByCreator, toPublicSummary } from "../db/posts.ts";
 import { findAvatarMedia, replaceAvatarMedia } from "../db/media.ts";
 import { assertStorageAvailable } from "../lib/quota.ts";
 import { purgeCreator } from "../lib/purge.ts";
 import { verifyOtp, isTwoFactorEnabled } from "../auth/twofactor.ts";
-import { requireAuth } from "../middleware/auth.ts";
+import { requireOwner } from "../middleware/auth.ts";
 import { publicCache } from "../middleware/cache.ts";
 import { validateSettings } from "./shared.ts";
 import { clearSessionCookie } from "../lib/cookies.ts";
 import type { AppState } from "../types.ts";
 
 export function creatorRoutes(app: Web<AppState>): void {
-	app.post("/api/v1/creators/me/settings", requireAuth(), async (ctx) => {
+	app.post("/api/v1/creators/me/settings", requireOwner(), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["title", "description", "author", "category", "language", "theme"]);
 
@@ -28,7 +28,7 @@ export function creatorRoutes(app: Web<AppState>): void {
 		return ok(ctx, settings);
 	});
 
-	app.post("/api/v1/creators/me/social", requireAuth(), async (ctx) => {
+	app.post("/api/v1/creators/me/social", requireOwner(), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["social"]);
 
@@ -39,7 +39,7 @@ export function creatorRoutes(app: Web<AppState>): void {
 
 	app.put(
 		"/api/v1/creators/me/avatar",
-		requireAuth(),
+		requireOwner(),
 		bodyLimit<AppState>({ maxSize: config.limits.maxAvatarSize, message: "Avatars can't be larger than 300 kB." }),
 		async (ctx) => {
 			const contentType = ctx.req.headers.get("Content-Type");
@@ -63,7 +63,7 @@ export function creatorRoutes(app: Web<AppState>): void {
 		},
 	);
 
-	app.delete("/api/v1/creators/me", requireAuth(), async (ctx) => {
+	app.delete("/api/v1/creators/me", requireOwner(), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["password"]);
 
@@ -102,18 +102,15 @@ export function creatorRoutes(app: Web<AppState>): void {
 		assertValid(username, isUsernameValid, ErrorCode.INVALID_USERNAME);
 
 		const creator = await findCreator(username);
-		if (!creator || isSuspended(creator)) throw new ApiError(ErrorCode.CREATOR_NOT_FOUND);
+		if (!creator || isSuspended(creator) || !isEmailVerified(creator)) throw new ApiError(ErrorCode.CREATOR_NOT_FOUND);
 
 		// Published only, filtered in SQL. This endpoint is public, so using the
 		// panel's list here would expose every draft the creator has.
 		const posts = await listPublishedByCreator(username);
 
+		const { email: _email, membership: _membership, ...profile } = toPublicCreator(creator);
 		return ok(ctx, {
-			creator: {
-				...toPublicCreator(creator),
-				email: undefined,
-				avatar: avatarUrl(username),
-			},
+			creator: { ...profile, avatar: avatarUrl(username) },
 			posts: posts.map(toPublicSummary),
 		});
 	});

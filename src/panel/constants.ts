@@ -4,6 +4,8 @@ export { CATEGORIES, COMMON_LANGUAGES as LANGUAGES, PANEL_BASE, SOCIAL_PLATFORMS
 
 let instance: PublicConfig = {
 	registrationEnabled: true,
+	passwordResetEnabled: false,
+	emailConfirmationEnabled: false,
 	minPasswordEntropy: 75,
 	maxAvatarSize: 300_000,
 	maxImageSize: 1_000_000,

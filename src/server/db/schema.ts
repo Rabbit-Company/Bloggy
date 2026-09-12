@@ -57,6 +57,16 @@ export function migrations(d: DatabaseDialect): Migration[] {
 	const mediaIdx = [index("media", "idx_media_username_kind", "username, kind"), index("media", "idx_media_created", "created_at")];
 
 	const viewIdx = [index("post_views", "idx_post_views_day", "day")];
+	const memberIdx = [index("team_members", "idx_team_members_blog", "blog_username")];
+	const inviteIdx = [index("team_invites", "idx_team_invites_blog", "blog_username"), index("team_invites", "idx_team_invites_expires", "expires_at")];
+	const passwordResetIdx = [
+		index("password_reset_tokens", "idx_password_reset_username", "username"),
+		index("password_reset_tokens", "idx_password_reset_expires", "expires_at"),
+	];
+	const emailConfirmationIdx = [
+		index("email_confirmation_tokens", "idx_email_confirmation_username", "username"),
+		index("email_confirmation_tokens", "idx_email_confirmation_expires", "expires_at"),
+	];
 
 	const body = (columns: string[], indexes: { inline?: string }[]): string =>
 		[...columns, ...indexes.map((i) => i.inline).filter((i): i is string => typeof i === "string")].join(",\n\t");
@@ -188,6 +198,87 @@ export function migrations(d: DatabaseDialect): Migration[] {
 				`ALTER TABLE creators ADD COLUMN suspended_at ${timestamp(d)}`,
 
 				`CREATE INDEX idx_media_username ON media (username)`,
+			],
+		},
+
+		{
+			name: "0005_collaboration",
+			statements: [
+				`CREATE TABLE IF NOT EXISTS team_members (
+	${body(
+		[
+			`username ${varchar(d, 30)} NOT NULL PRIMARY KEY`,
+			`blog_username ${varchar(d, 30)} NOT NULL`,
+			`password ${text(d)} NOT NULL`,
+			`email ${varchar(d, 320)} NOT NULL`,
+			`role ${varchar(d, 16)} NOT NULL`,
+			`created_at ${timestamp(d)} NOT NULL`,
+			`accessed_at ${timestamp(d)} NOT NULL`,
+		],
+		memberIdx,
+	)}
+)`,
+				...trailing(memberIdx),
+
+				`CREATE TABLE IF NOT EXISTS team_invites (
+	${body(
+		[
+			`token_hash ${varchar(d, 128)} NOT NULL PRIMARY KEY`,
+			`blog_username ${varchar(d, 30)} NOT NULL`,
+			`email ${varchar(d, 320)} NOT NULL`,
+			`role ${varchar(d, 16)} NOT NULL`,
+			`created_at ${timestamp(d)} NOT NULL`,
+			`expires_at ${timestamp(d)} NOT NULL`,
+		],
+		inviteIdx,
+	)}
+)`,
+				...trailing(inviteIdx),
+
+				`ALTER TABLE posts ADD COLUMN created_by ${varchar(d, 30)} NOT NULL DEFAULT ''`,
+				`ALTER TABLE posts ADD COLUMN updated_by ${varchar(d, 30)} NOT NULL DEFAULT ''`,
+				`ALTER TABLE posts ADD COLUMN review_note ${varchar(d, 500)} NOT NULL DEFAULT ''`,
+				`UPDATE posts SET created_by = username, updated_by = username WHERE created_by = ''`,
+			],
+		},
+
+		{
+			name: "0006_password_resets",
+			statements: [
+				`CREATE TABLE IF NOT EXISTS password_reset_tokens (
+	${body(
+		[
+			`token_hash ${varchar(d, 128)} NOT NULL PRIMARY KEY`,
+			`username ${varchar(d, 30)} NOT NULL`,
+			`created_at ${timestamp(d)} NOT NULL`,
+			`expires_at ${timestamp(d)} NOT NULL`,
+		],
+		passwordResetIdx,
+	)}
+)`,
+				...trailing(passwordResetIdx),
+			],
+		},
+
+		{
+			name: "0007_email_confirmation",
+			statements: [
+				`ALTER TABLE creators ADD COLUMN email_verified_at ${timestamp(d)}`,
+				`UPDATE creators SET email_verified_at = created_at WHERE email_verified_at IS NULL`,
+
+				`CREATE TABLE IF NOT EXISTS email_confirmation_tokens (
+	${body(
+		[
+			`token_hash ${varchar(d, 128)} NOT NULL PRIMARY KEY`,
+			`username ${varchar(d, 30)} NOT NULL`,
+			`email ${varchar(d, 320)} NOT NULL`,
+			`created_at ${timestamp(d)} NOT NULL`,
+			`expires_at ${timestamp(d)} NOT NULL`,
+		],
+		emailConfirmationIdx,
+	)}
+)`,
+				...trailing(emailConfirmationIdx),
 			],
 		},
 	];

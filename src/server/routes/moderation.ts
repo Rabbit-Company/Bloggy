@@ -13,6 +13,7 @@ import { backupStatus, createBackup, deleteBackup, listBackups, readBackup, rest
 import { requireAdminAccount } from "../middleware/auth.ts";
 import { invalidateCreator } from "../middleware/cache.ts";
 import { logger } from "../lib/logger.ts";
+import { listTeamMemberUsernames } from "../db/team.ts";
 import type { AppState } from "../types.ts";
 
 const PAGE_SIZE = 100;
@@ -72,6 +73,7 @@ export function moderationRoutes(app: Web<AppState>): void {
 
 		await setSuspended(creator.username, true);
 		await deleteSessionsByCreator(creator.username);
+		for (const member of await listTeamMemberUsernames(creator.username)) await deleteSessionsByCreator(member);
 		invalidateCreator(creator.username);
 
 		logger.audit(`Creator suspended: ${creator.username}`, { username: creator.username, by: actor });

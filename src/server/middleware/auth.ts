@@ -4,7 +4,8 @@ import { resolveSession } from "../auth/sessions.ts";
 import { config } from "../config.ts";
 import { safeEqual } from "../lib/crypto.ts";
 import { SESSION_COOKIE, readCookie } from "../lib/cookies.ts";
-import type { AppContext, AppMiddleware } from "../types.ts";
+import { findTeamMember, touchTeamMember } from "../db/team.ts";
+import type { AppContext, AppMiddleware, AuthActor } from "../types.ts";
 
 /**
  * The scheme is compared case-insensitively, as RFC 7235 requires.
@@ -22,6 +23,33 @@ function bearerToken(req: Request): string | null {
 }
 
 export type AuthSource = "cookie" | "bearer";
+
+async function resolveActor(username: string): Promise<{ creator: CreatorRow; actor: AuthActor } | null> {
+	const owner = await findCreator(username);
+	if (owner !== null) {
+		return {
+			creator: owner,
+			actor: { username, role: "owner", isOwner: true, canPublish: true, canEditAll: true, member: null },
+		};
+	}
+
+	const member = await findTeamMember(username);
+	if (member === null) return null;
+	const creator = await findCreator(member.blog_username);
+	if (creator === null) return null;
+	await touchTeamMember(member.username, member.accessed_at);
+	return {
+		creator,
+		actor: {
+			username: member.username,
+			role: member.role,
+			isOwner: false,
+			canPublish: member.role === "publisher",
+			canEditAll: member.role === "editor" || member.role === "publisher",
+			member,
+		},
+	};
+}
 
 export function credentials(req: Request): { token: string; source: AuthSource } | null {
 	const bearer = bearerToken(req);
@@ -44,9 +72,9 @@ export async function findSignedInCreator(req: Request): Promise<CreatorRow | nu
 	const session = await resolveSession(found.token);
 	if (session === null) return null;
 
-	const creator = await findCreator(session.username);
-	if (creator === null || isSuspended(creator)) return null;
-	return creator;
+	const resolved = await resolveActor(session.username);
+	if (resolved === null || isSuspended(resolved.creator)) return null;
+	return resolved.creator;
 }
 
 export function requireAuth(): AppMiddleware {
@@ -57,8 +85,9 @@ export function requireAuth(): AppMiddleware {
 		const session = await resolveSession(found.token);
 		if (session === null) throw new ApiError(ErrorCode.INVALID_TOKEN);
 
-		const creator = await findCreator(session.username);
-		if (creator === null) throw new ApiError(ErrorCode.INVALID_TOKEN);
+		const resolved = await resolveActor(session.username);
+		if (resolved === null) throw new ApiError(ErrorCode.INVALID_TOKEN);
+		const { creator, actor } = resolved;
 
 		// Suspending revokes the account's sessions, so this only catches one
 		// issued in the same instant. Checked anyway: a suspension that depends
@@ -69,9 +98,20 @@ export function requireAuth(): AppMiddleware {
 		ctx.set("creator", creator);
 		ctx.set("token", found.token);
 		ctx.set("authSource", found.source);
+		ctx.set("actor", actor);
 
 		return await next();
 	};
+}
+
+/** Restricts blog ownership and account-security operations to the owner. */
+export function requireOwner(): AppMiddleware {
+	const auth = requireAuth();
+	return async (ctx, next) =>
+		await auth(ctx, async () => {
+			if (!ctx.get("actor").isOwner) throw new ApiError(ErrorCode.UNAUTHORIZED);
+			return await next();
+		});
 }
 
 /**
@@ -104,14 +144,14 @@ export function requireAdminAccount(): AppMiddleware {
 	const auth = requireAuth();
 	return async (ctx, next) => {
 		return await auth(ctx, async () => {
-			if (!isAdmin(ctx.get("creator"))) throw new ApiError(ErrorCode.NOT_ADMIN);
+			if (!ctx.get("actor").isOwner || !isAdmin(ctx.get("creator"))) throw new ApiError(ErrorCode.NOT_ADMIN);
 			return await next();
 		});
 	};
 }
 
 export function assertOwner(ctx: AppContext, username: string): void {
-	if (ctx.get("creator")?.username !== username) {
+	if (!ctx.get("actor")?.isOwner || ctx.get("creator")?.username !== username) {
 		throw new ApiError(ErrorCode.UNAUTHORIZED);
 	}
 }

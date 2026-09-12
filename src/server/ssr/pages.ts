@@ -5,6 +5,7 @@ import type { PostFilter, PostRow, PostSummaryRow } from "../db/posts.ts";
 import { escapeHtml } from "./markdown.ts";
 import { renderMarkdown } from "./markdown.ts";
 import { formatDate, renderPage, renderSocial, siteSocial, type PageMeta } from "./layout.ts";
+import { BLOG_JS_ASSET, LOGO_PNG_ASSET, LOGO_SVG_ASSET } from "../lib/public-assets.ts";
 
 const domain = config.server.domain;
 
@@ -98,7 +99,7 @@ export function renderMainPage(creators: CreatorRow[], topics: string[] = [], ac
 	const body = `<main class="home-wrap">
 <header class="home-header">
 	<a class="home-brand" href="/" aria-label="${escapeHtml(config.site.title)} home">
-		<img src="/assets/logo.svg" alt="" width="36" height="36">
+		<img src="${LOGO_SVG_ASSET.path}" alt="" width="36" height="36">
 		<span>${escapeHtml(config.site.title)}</span>
 	</a>
 	<nav class="home-account" aria-label="Account">
@@ -118,7 +119,7 @@ export function renderMainPage(creators: CreatorRow[], topics: string[] = [], ac
 	<div class="hero-mark" aria-hidden="true">
 		<span class="hero-orbit one"></span>
 		<span class="hero-orbit two"></span>
-		<div class="hero-logo"><img src="/assets/logo.svg" alt="" width="132" height="132"></div>
+		<div class="hero-logo"><img src="${LOGO_SVG_ASSET.path}" alt="" width="132" height="132"></div>
 	</div>
 </section>
 <section class="creator-directory" id="creators">
@@ -134,8 +135,8 @@ export function renderMainPage(creators: CreatorRow[], topics: string[] = [], ac
 			description: config.site.description,
 			url: canonical,
 			language: config.site.language,
-			image: `${domain}/assets/logo.png`,
-			icon: `${domain}/assets/logo.svg`,
+			image: `${domain}${LOGO_PNG_ASSET.path}`,
+			icon: `${domain}${LOGO_SVG_ASSET.path}`,
 			type: "website",
 			siteName: config.site.title,
 			author: config.site.author,
@@ -241,7 +242,7 @@ ${filter.tag === undefined ? "" : `${renderTagNote(creator.username, filter.tag)
 		posts.length === 0 ? `<p class="empty">${emptyMessage(filter)}</p>` : `<div class="grid">\n${cards}\n</div>`
 	}${
 		hasMore
-			? `\n<div class="more-wrap"><a class="more" rel="next" href="${escapeHtml(base)}${escapeHtml(listingQuery(filter, paging.page + 1))}">Load more posts</a></div>\n<script src="/assets/blog.js" defer></script>`
+			? `\n<div class="more-wrap"><a class="more" rel="next" href="${escapeHtml(base)}${escapeHtml(listingQuery(filter, paging.page + 1))}">Load more posts</a></div>\n<script src="${BLOG_JS_ASSET.path}" defer></script>`
 			: ""
 	}
 </main>`;
@@ -308,9 +309,9 @@ export function renderPostPage(creator: CreatorRow, post: PostRow, options: Post
 ${
 	options.preview === true
 		? `<div class="preview-banner">${
-				post.status === "draft"
-					? "This is a draft. Only you can see this page, and it is hidden from your blog, feeds and search engines."
-					: "Preview of a published post."
+				post.status === "published"
+					? "Preview of a published post."
+					: `This post is ${post.status === "review" ? "in review" : post.status === "changes" ? "waiting for changes" : "a draft"}. Only your team can see this page, and it is hidden from your blog, feeds and search engines.`
 			}</div>`
 		: ""
 }
@@ -325,7 +326,7 @@ ${
 	<div class="content">
 ${content}
 	</div>
-	<a class="share" href="https://twitter.com/intent/tweet?text=${shareText}" target="_blank" rel="noopener noreferrer">
+	<a class="share" href="https://twitter.com/intent/tweet?text=${shareText}" target="_blank" rel="noopener">
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 4.01c-1 .49-1.98 .689-3 .99c-1.121-1.265-2.783-1.335-4.38-.737s-2.643 2.06-2.62 3.737v1c-3.245 .083-6.135-1.395-8-4c0 0-4.182 7.433 4 11c-1.872 1.247-3.739 2.088-6 2c3.308 1.803 6.913 2.423 10.034 1.517c3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84 0 0 0 .497-3.753c-.002-.249 1.51-2.772 1.818-4.013z"/></svg>
 		Share
 	</a>
@@ -389,8 +390,8 @@ export function renderErrorPage(status: number, message: string): string {
 			description: message,
 			url: domain,
 			language: config.site.language,
-			image: `${domain}/assets/logo.png`,
-			icon: `${domain}/assets/logo.svg`,
+			image: `${domain}${LOGO_PNG_ASSET.path}`,
+			icon: `${domain}${LOGO_SVG_ASSET.path}`,
 			type: "website",
 			siteName: config.site.title,
 			theme: "auto",

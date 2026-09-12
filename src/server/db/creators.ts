@@ -1,9 +1,11 @@
 import { now, sql, today } from "./index.ts";
+import type { TeamRole } from "../../shared/constants.ts";
 
 export interface CreatorRow {
 	username: string;
 	password: string;
 	email: string;
+	email_verified_at: string | null;
 	totp_secret: string | null;
 	backup_codes: string | null;
 	title: string;
@@ -36,6 +38,13 @@ export interface Creator {
 	accessedAt: string;
 	isAdmin: boolean;
 	suspendedAt: string | null;
+	membership: {
+		username: string;
+		role: "owner" | TeamRole;
+		isOwner: boolean;
+		canPublish: boolean;
+		canEditAll: boolean;
+	};
 }
 
 export interface CreatorSettings {
@@ -64,10 +73,20 @@ export function parseSocial(value: string | null): Record<string, string> {
 	}
 }
 
-export function toPublicCreator(row: CreatorRow): Creator {
+export function toPublicCreator(
+	row: CreatorRow,
+	membership: Creator["membership"] = {
+		username: row.username,
+		role: "owner",
+		isOwner: true,
+		canPublish: true,
+		canEditAll: true,
+	},
+	email = row.email,
+): Creator {
 	return {
 		username: row.username,
-		email: row.email,
+		email,
 		title: row.title,
 		description: row.description,
 		author: row.author,
@@ -80,6 +99,7 @@ export function toPublicCreator(row: CreatorRow): Creator {
 		accessedAt: row.accessed_at,
 		isAdmin: isAdmin(row),
 		suspendedAt: row.suspended_at,
+		membership,
 	};
 }
 
@@ -102,12 +122,13 @@ export async function creatorExists(username: string): Promise<boolean> {
 	return rows.length > 0;
 }
 
-export async function insertCreator(creator: NewCreator & { password: string }): Promise<void> {
+export async function insertCreator(creator: NewCreator & { password: string; emailVerified?: boolean }): Promise<void> {
 	const timestamp = now();
 	await sql`INSERT INTO creators ${sql({
 		username: creator.username,
 		password: creator.password,
 		email: creator.email,
+		email_verified_at: creator.emailVerified === false ? null : timestamp,
 		totp_secret: null,
 		backup_codes: null,
 		title: creator.title,
@@ -141,6 +162,14 @@ export async function updateEmail(username: string, email: string): Promise<void
 	await sql`UPDATE creators SET email = ${email} WHERE username = ${username}`;
 }
 
+export function isEmailVerified(row: Pick<CreatorRow, "email_verified_at">): boolean {
+	return row.email_verified_at !== null;
+}
+
+export async function markEmailVerified(username: string): Promise<void> {
+	await sql`UPDATE creators SET email_verified_at = ${now()} WHERE username = ${username}`;
+}
+
 export async function updateAvatarType(username: string, contentType: string | null): Promise<void> {
 	await sql`UPDATE creators SET avatar_type = ${contentType} WHERE username = ${username}`;
 }
@@ -166,17 +195,18 @@ export async function deleteCreator(username: string): Promise<void> {
 export async function listCreators(limit = 100, category?: string): Promise<CreatorRow[]> {
 	if (category !== undefined) {
 		return (await sql`SELECT * FROM creators WHERE suspended_at IS NULL AND category = ${category}
+			AND email_verified_at IS NOT NULL
 			ORDER BY accessed_at DESC LIMIT ${limit}`) as CreatorRow[];
 	}
 
-	return (await sql`SELECT * FROM creators WHERE suspended_at IS NULL
+	return (await sql`SELECT * FROM creators WHERE suspended_at IS NULL AND email_verified_at IS NOT NULL
 		ORDER BY accessed_at DESC LIMIT ${limit}`) as CreatorRow[];
 }
 
 /** Categories currently represented by at least one public creator. */
 export async function listCreatorCategories(): Promise<string[]> {
 	const rows = (await sql`SELECT DISTINCT category FROM creators
-		WHERE suspended_at IS NULL ORDER BY category ASC`) as { category: string }[];
+		WHERE suspended_at IS NULL AND email_verified_at IS NOT NULL ORDER BY category ASC`) as { category: string }[];
 	return rows.map((row) => row.category);
 }
 
@@ -245,7 +275,7 @@ export async function listCreatorOverview(sort: OverviewSort = "storage", descen
 
 	const rows = (await sql`SELECT c.username, c.author, c.title, c.email, c.created_at, c.accessed_at, c.is_admin, c.suspended_at,
 			(SELECT COUNT(*) FROM posts p WHERE p.username = c.username AND p.status = 'published') AS posts,
-			(SELECT COUNT(*) FROM posts p WHERE p.username = c.username AND p.status = 'draft') AS drafts,
+			(SELECT COUNT(*) FROM posts p WHERE p.username = c.username AND p.status <> 'published') AS drafts,
 			(SELECT COALESCE(SUM(m.size), 0) FROM media m WHERE m.username = c.username) AS storage
 		FROM creators c
 		ORDER BY ${sql.unsafe(`${column} ${direction}`)}, c.username ASC

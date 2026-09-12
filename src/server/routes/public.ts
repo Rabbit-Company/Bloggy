@@ -2,7 +2,7 @@ import { Web } from "@rabbit-company/web";
 import { config } from "../config.ts";
 import { ApiError, ErrorCode } from "../lib/errors.ts";
 import { isCategoryValid, isPostTagValid, isSlugValid, isUsernameValid } from "../lib/validation.ts";
-import { findCreator, isSuspended, listCreatorCategories, listCreators } from "../db/creators.ts";
+import { findCreator, isEmailVerified, isSuspended, listCreatorCategories, listCreators } from "../db/creators.ts";
 import { countPublishedByCreator, findPost, findPublishedPost, listAllPostRefs, listPublishedByCreator, type PostFilter } from "../db/posts.ts";
 import { sql } from "../db/index.ts";
 import { publicCache } from "../middleware/cache.ts";
@@ -12,9 +12,7 @@ import type { PublicConfig } from "../../shared/constants.ts";
 import { analyticsEnabled } from "../lib/burrowgate.ts";
 import { renderCreatorPage, renderMainPage, renderPostPage } from "../ssr/pages.ts";
 import { renderAtom, renderJsonFeed, renderRobots, renderRss, renderSitemap } from "../ssr/feeds.ts";
-import { BLOG_CSS } from "../ssr/styles.ts";
-import { BLOG_JS } from "../ssr/scripts.ts";
-import { LOGO_PNG, LOGO_SVG } from "../lib/logo.ts";
+import { PUBLIC_ASSETS, type PublicAsset } from "../lib/public-assets.ts";
 import { logger } from "../lib/logger.ts";
 import type { AppState } from "../types.ts";
 
@@ -27,6 +25,19 @@ const MAX_PAGE = 1000;
 
 const FEED_LIMIT = 20;
 
+const IMMUTABLE_ASSET_CACHE = "public, max-age=31536000, immutable";
+
+function serveAsset(req: Request, asset: PublicAsset, immutable: boolean): Response {
+	const headers = {
+		"Content-Type": asset.contentType,
+		"Cache-Control": immutable ? IMMUTABLE_ASSET_CACHE : "no-cache",
+		ETag: asset.etag,
+	};
+
+	if (req.headers.get("If-None-Match") === asset.etag) return new Response(null, { status: 304, headers });
+	return new Response(asset.body, { headers });
+}
+
 function xml(body: string, contentType: string): Response {
 	return new Response(body, {
 		headers: { "Content-Type": contentType, "Cache-Control": `public, max-age=${config.cache.ttl}` },
@@ -34,29 +45,12 @@ function xml(body: string, contentType: string): Response {
 }
 
 export function publicRoutes(app: Web<AppState>): void {
-	app.get("/assets/blog.css", (ctx) => {
-		return new Response(BLOG_CSS, {
-			headers: { "Content-Type": "text/css; charset=utf-8", "Cache-Control": "public, max-age=86400" },
-		});
-	});
-
-	app.get("/assets/blog.js", (ctx) => {
-		return new Response(BLOG_JS, {
-			headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "public, max-age=86400" },
-		});
-	});
-
-	app.get("/assets/logo.svg", (ctx) => {
-		return new Response(LOGO_SVG, {
-			headers: { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=86400" },
-		});
-	});
-
-	app.get("/assets/logo.png", (ctx) => {
-		return new Response(LOGO_PNG, {
-			headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" },
-		});
-	});
+	for (const asset of PUBLIC_ASSETS) {
+		app.get(asset.path, (ctx) => serveAsset(ctx.req, asset, true));
+		// Keep old links and cached HTML working during the transition. These
+		// aliases always revalidate and can be removed after older pages expire.
+		app.get(asset.legacyPath, (ctx) => serveAsset(ctx.req, asset, false));
+	}
 
 	app.get("/", publicCache(), async (ctx) => {
 		const topic = readTopic(ctx.req.url);
@@ -129,6 +123,10 @@ export function publicRoutes(app: Web<AppState>): void {
 
 		const post = await findPost(creator.username, slug);
 		if (!post) throw new ApiError(ErrorCode.POST_NOT_FOUND);
+		const actor = ctx.get("actor");
+		if (!actor.isOwner && !actor.canEditAll && post.status !== "published" && post.created_by !== actor.username) {
+			throw new ApiError(ErrorCode.POST_NOT_FOUND);
+		}
 
 		return ctx.html(renderPostPage(creator, post, { preview: true }), 200, {
 			"Cache-Control": "no-store, private",
@@ -148,6 +146,8 @@ export function publicRoutes(app: Web<AppState>): void {
 	app.get("/api/v1/config", publicCache(60), (ctx) => {
 		const body: PublicConfig = {
 			registrationEnabled: config.limits.registrationEnabled,
+			passwordResetEnabled: config.smtp.enabled,
+			emailConfirmationEnabled: config.smtp.enabled,
 			minPasswordEntropy: config.limits.minPasswordEntropy,
 			maxAvatarSize: config.limits.maxAvatarSize,
 			maxImageSize: config.limits.maxImageSize,
@@ -204,7 +204,7 @@ async function requireCreator(username: string | undefined) {
 	const creator = await findCreator(username);
 	// A suspended blog 404s exactly as a missing one, so suspension is not
 	// observable from outside and the pages stop resolving immediately.
-	if (!creator || isSuspended(creator)) throw new ApiError(ErrorCode.CREATOR_NOT_FOUND);
+	if (!creator || isSuspended(creator) || !isEmailVerified(creator)) throw new ApiError(ErrorCode.CREATOR_NOT_FOUND);
 	return creator;
 }
 
