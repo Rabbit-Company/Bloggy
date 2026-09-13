@@ -70,6 +70,7 @@ const messages: Record<ErrorCode, string> = {
 	[ErrorCode.EMAIL_CONFIRMATION_INVALID]: "This email confirmation link is invalid, has expired or has already been used.",
 	[ErrorCode.EMAIL_DELIVERY_FAILED]: "We could not send the confirmation email. Please try again.",
 	[ErrorCode.EMAIL_CONFIRMATION_UNAVAILABLE]: "Email confirmation is not configured on this instance.",
+	[ErrorCode.INVALID_CUSTOMIZATION]: "The blog customization is invalid.",
 	[ErrorCode.STORAGE_QUOTA_EXCEEDED]:
 		"You have used all of your storage allowance. Delete some images, or contact the administrator to have your limit raised.",
 };

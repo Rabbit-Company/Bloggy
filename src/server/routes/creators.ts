@@ -6,16 +6,28 @@ import { jsonBody, ok, requireFields } from "../lib/response.ts";
 import { assertValid, isImageTypeSupported, isOtpValid, isSocialValid, isUsernameValid } from "../lib/validation.ts";
 import { uuid, verifyPassword } from "../lib/crypto.ts";
 import { avatarKey, avatarUrl, storage } from "../lib/storage.ts";
-import { findCreator, isEmailVerified, isSuspended, listCreators, toPublicCreator, updateAvatarType, updateSettings, updateSocial } from "../db/creators.ts";
+import {
+	findCreator,
+	isEmailVerified,
+	isSuspended,
+	listCreators,
+	parseThemeColors,
+	toPublicCreator,
+	updateAvatarType,
+	updateSettings,
+	updateSocial,
+} from "../db/creators.ts";
 import { listPublishedByCreator, toPublicSummary } from "../db/posts.ts";
 import { findAvatarMedia, replaceAvatarMedia } from "../db/media.ts";
 import { assertStorageAvailable } from "../lib/quota.ts";
 import { purgeCreator } from "../lib/purge.ts";
 import { verifyOtp, isTwoFactorEnabled } from "../auth/twofactor.ts";
 import { requireOwner } from "../middleware/auth.ts";
-import { publicCache } from "../middleware/cache.ts";
+import { invalidateCreator, publicCache } from "../middleware/cache.ts";
 import { validateSettings } from "./shared.ts";
 import { clearSessionCookie } from "../lib/cookies.ts";
+import { findCustomization, saveCustomization } from "../db/customizations.ts";
+import { validateCustomization } from "../lib/customization.ts";
 import type { AppState } from "../types.ts";
 
 export function creatorRoutes(app: Web<AppState>): void {
@@ -23,9 +35,25 @@ export function creatorRoutes(app: Web<AppState>): void {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["title", "description", "author", "category", "language", "theme"]);
 
-		const settings = validateSettings(body);
-		await updateSettings(ctx.get("creator").username, settings);
+		const creator = ctx.get("creator");
+		const settings = validateSettings(body, parseThemeColors(creator.theme_colors));
+		const username = creator.username;
+		await updateSettings(username, settings);
+		invalidateCreator(username);
 		return ok(ctx, settings);
+	});
+
+	app.get("/api/v1/creators/me/customization", requireOwner(), async (ctx) => {
+		return ok(ctx, await findCustomization(ctx.get("creator").username));
+	});
+
+	app.post("/api/v1/creators/me/customization", requireOwner(), async (ctx) => {
+		const body = await jsonBody<Record<string, unknown>>(ctx);
+		const customization = validateCustomization(body);
+		const username = ctx.get("creator").username;
+		const saved = await saveCustomization(username, customization);
+		invalidateCreator(username);
+		return ok(ctx, saved);
 	});
 
 	app.post("/api/v1/creators/me/social", requireOwner(), async (ctx) => {
@@ -33,7 +61,9 @@ export function creatorRoutes(app: Web<AppState>): void {
 		requireFields(body, ["social"]);
 
 		assertValid(body.social, isSocialValid, ErrorCode.INVALID_SOCIAL);
-		await updateSocial(ctx.get("creator").username, body.social);
+		const username = ctx.get("creator").username;
+		await updateSocial(username, body.social);
+		invalidateCreator(username);
 		return ok(ctx, { social: body.social });
 	});
 
@@ -58,6 +88,7 @@ export function creatorRoutes(app: Web<AppState>): void {
 			await storage.put(avatarKey(username), data, contentType);
 			await updateAvatarType(username, contentType);
 			await replaceAvatarMedia(uuid(), username, contentType, data.byteLength);
+			invalidateCreator(username);
 
 			return ok(ctx, { url: avatarUrl(username) });
 		},

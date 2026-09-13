@@ -29,9 +29,31 @@ export type Category = (typeof CATEGORIES)[number];
 export const THEMES = [
 	{ value: "light", label: "Light" },
 	{ value: "dark", label: "Dark" },
+	{ value: "custom", label: "Custom colors" },
 ] as const;
 
 export type Theme = (typeof THEMES)[number]["value"];
+
+export interface ThemeColors {
+	background: string;
+	surface: string;
+	text: string;
+	muted: string;
+	border: string;
+	accent: string;
+}
+
+export const DEFAULT_THEME_COLORS: ThemeColors = {
+	background: "#f9fafb",
+	surface: "#ffffff",
+	text: "#111827",
+	muted: "#6b7280",
+	border: "#e5e7eb",
+	accent: "#4f46e5",
+};
+
+export const CUSTOM_CSS_MAX_BYTES = 50_000;
+export const CUSTOM_TEMPLATE_MAX_BYTES = 50_000;
 
 // prettier-ignore
 export const LANGUAGES = [

@@ -1,5 +1,5 @@
 import { now, sql, today } from "./index.ts";
-import type { TeamRole } from "../../shared/constants.ts";
+import { DEFAULT_THEME_COLORS, type TeamRole, type ThemeColors } from "../../shared/constants.ts";
 
 export interface CreatorRow {
 	username: string;
@@ -15,6 +15,7 @@ export interface CreatorRow {
 	language: string;
 	social: string | null;
 	theme: string;
+	theme_colors: string | null;
 	avatar_type: string | null;
 	created_at: string;
 	accessed_at: string;
@@ -33,6 +34,7 @@ export interface Creator {
 	language: string;
 	social: Record<string, string>;
 	theme: string;
+	themeColors: ThemeColors;
 	twoFactorEnabled: boolean;
 	createdAt: string;
 	accessedAt: string;
@@ -54,12 +56,14 @@ export interface CreatorSettings {
 	category: string;
 	language: string;
 	theme: string;
+	themeColors: ThemeColors;
 }
 
-export interface NewCreator extends CreatorSettings {
+export interface NewCreator extends Omit<CreatorSettings, "themeColors"> {
 	username: string;
 	password: string;
 	email: string;
+	themeColors?: ThemeColors;
 }
 
 export function parseSocial(value: string | null): Record<string, string> {
@@ -70,6 +74,25 @@ export function parseSocial(value: string | null): Record<string, string> {
 		return parsed as Record<string, string>;
 	} catch {
 		return {};
+	}
+}
+
+export function parseThemeColors(value: string | null): ThemeColors {
+	if (!value) return { ...DEFAULT_THEME_COLORS };
+	try {
+		const parsed = JSON.parse(value) as Partial<ThemeColors>;
+		const color = (candidate: unknown, fallback: string) =>
+			typeof candidate === "string" && /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate.toLowerCase() : fallback;
+		return {
+			background: color(parsed.background, DEFAULT_THEME_COLORS.background),
+			surface: color(parsed.surface, DEFAULT_THEME_COLORS.surface),
+			text: color(parsed.text, DEFAULT_THEME_COLORS.text),
+			muted: color(parsed.muted, DEFAULT_THEME_COLORS.muted),
+			border: color(parsed.border, DEFAULT_THEME_COLORS.border),
+			accent: color(parsed.accent, DEFAULT_THEME_COLORS.accent),
+		};
+	} catch {
+		return { ...DEFAULT_THEME_COLORS };
 	}
 }
 
@@ -94,6 +117,7 @@ export function toPublicCreator(
 		language: row.language,
 		social: parseSocial(row.social),
 		theme: row.theme,
+		themeColors: parseThemeColors(row.theme_colors),
 		twoFactorEnabled: row.totp_secret !== null,
 		createdAt: row.created_at,
 		accessedAt: row.accessed_at,
@@ -138,6 +162,7 @@ export async function insertCreator(creator: NewCreator & { password: string; em
 		language: creator.language,
 		social: null,
 		theme: creator.theme,
+		theme_colors: JSON.stringify(creator.themeColors ?? DEFAULT_THEME_COLORS),
 		avatar_type: null,
 		created_at: timestamp,
 		accessed_at: timestamp,
@@ -147,7 +172,15 @@ export async function insertCreator(creator: NewCreator & { password: string; em
 }
 
 export async function updateSettings(username: string, settings: CreatorSettings): Promise<void> {
-	await sql`UPDATE creators SET ${sql({ ...settings })} WHERE username = ${username}`;
+	await sql`UPDATE creators SET ${sql({
+		title: settings.title,
+		description: settings.description,
+		author: settings.author,
+		category: settings.category,
+		language: settings.language,
+		theme: settings.theme,
+		theme_colors: JSON.stringify(settings.themeColors),
+	})} WHERE username = ${username}`;
 }
 
 export async function updateSocial(username: string, social: Record<string, string>): Promise<void> {

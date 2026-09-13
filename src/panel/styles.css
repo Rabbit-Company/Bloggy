@@ -334,6 +334,135 @@ textarea.code {
 	grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
 }
 
+.theme-colors {
+	margin: 0.25rem 0 1.25rem;
+	padding: 1rem;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--surface-2);
+}
+.theme-colors-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 0.9rem;
+}
+.theme-colors-head span {
+	color: var(--muted);
+	font-size: 0.82rem;
+}
+.color-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+	gap: 0.75rem;
+}
+.color-grid .field {
+	margin: 0;
+}
+.color-grid input[type="color"] {
+	height: 3rem;
+	padding: 0.25rem;
+	cursor: pointer;
+}
+
+.customization-card .card-top {
+	margin-bottom: 1rem;
+}
+.customization-card .card-top h2 {
+	margin: 0 0 0.35rem;
+	font-size: 1.15rem;
+}
+.customization-card .card-top .hint {
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+.customization-notice {
+	margin-bottom: 1rem;
+	padding: 0.9rem 1rem;
+	border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+.customization-notice p {
+	margin: 0.2rem 0 0;
+	color: var(--muted);
+	font-size: 0.88rem;
+}
+.customization-section {
+	margin-bottom: 0.75rem;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--bg);
+}
+.customization-section > summary {
+	padding: 0.85rem 1rem;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	cursor: pointer;
+	font-weight: 650;
+}
+.customization-section > summary small {
+	padding: 0.15rem 0.45rem;
+	border-radius: 999px;
+	background: var(--surface-2);
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-weight: 500;
+}
+.customization-section[open] > summary {
+	border-bottom: 1px solid var(--border);
+}
+.customization-section > .help {
+	margin: 1rem 1rem 0;
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+.customization-section > .field {
+	margin: 0;
+	padding: 0 1rem 1rem;
+}
+.component-list {
+	display: flex;
+	gap: 0.4rem;
+	flex-wrap: wrap;
+	padding: 0.75rem 1rem;
+}
+.component-list code {
+	padding: 0.2rem 0.45rem;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: var(--surface);
+	color: var(--accent);
+	font-size: 0.76rem;
+}
+.customization-editor {
+	min-height: 16rem;
+	tab-size: 2;
+}
+.customization-actions {
+	margin-top: 1rem;
+}
+.customization-actions .danger {
+	margin-left: auto;
+}
+
+@media (max-width: 640px) {
+	.theme-colors-head {
+		display: block;
+	}
+	.theme-colors-head span {
+		display: block;
+		margin-top: 0.2rem;
+	}
+	.customization-actions .danger {
+		margin-left: 0;
+	}
+}
+
 .button {
 	display: inline-flex;
 	align-items: center;

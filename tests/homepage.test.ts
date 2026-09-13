@@ -19,6 +19,7 @@ function creator(overrides: Partial<CreatorRow> = {}): CreatorRow {
 		language: "en",
 		social: null,
 		theme: "light",
+		theme_colors: null,
 		avatar_type: null,
 		created_at: "2026-01-01T00:00:00.000Z",
 		accessed_at: "2026-01-01T00:00:00.000Z",

@@ -281,6 +281,21 @@ export function migrations(d: DatabaseDialect): Migration[] {
 				...trailing(emailConfirmationIdx),
 			],
 		},
+
+		{
+			name: "0008_creator_customization",
+			statements: [
+				`ALTER TABLE creators ADD COLUMN theme_colors ${text(d)}`,
+
+				`CREATE TABLE IF NOT EXISTS creator_customizations (
+	username ${varchar(d, 30)} NOT NULL PRIMARY KEY,
+	custom_css ${text(d)} NOT NULL,
+	home_template ${text(d)} NOT NULL,
+	post_template ${text(d)} NOT NULL,
+	updated_at ${timestamp(d)} NOT NULL
+)`,
+			],
+		},
 	];
 }
 

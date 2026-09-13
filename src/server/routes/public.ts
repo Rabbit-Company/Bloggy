@@ -11,6 +11,7 @@ import { ok } from "../lib/response.ts";
 import type { PublicConfig } from "../../shared/constants.ts";
 import { analyticsEnabled } from "../lib/burrowgate.ts";
 import { renderCreatorPage, renderMainPage, renderPostPage } from "../ssr/pages.ts";
+import { findCustomization } from "../db/customizations.ts";
 import { renderAtom, renderJsonFeed, renderRobots, renderRss, renderSitemap } from "../ssr/feeds.ts";
 import { PUBLIC_ASSETS, type PublicAsset } from "../lib/public-assets.ts";
 import { logger } from "../lib/logger.ts";
@@ -65,15 +66,16 @@ export function publicRoutes(app: Web<AppState>): void {
 
 		// Drafts are filtered in SQL rather than after the fact, so a public
 		// page cannot leak one by forgetting to slice them off.
-		const [posts, total] = await Promise.all([
+		const [posts, total, customization] = await Promise.all([
 			listPublishedByCreator(creator.username, POSTS_PER_PAGE, (page - 1) * POSTS_PER_PAGE, filter),
 			countPublishedByCreator(creator.username, filter),
+			findCustomization(creator.username),
 		]);
 
 		// Search results are near-duplicates of the listing and unbounded in
 		// number, so they are kept out of search indexes. Tag pages are not.
 		const headers = filter.search === undefined ? undefined : { "X-Robots-Tag": "noindex" };
-		return ctx.html(renderCreatorPage(creator, posts, filter, { page, total, perPage: POSTS_PER_PAGE }), 200, headers);
+		return ctx.html(renderCreatorPage(creator, posts, filter, { page, total, perPage: POSTS_PER_PAGE }, customization), 200, headers);
 	});
 
 	// Registered before the post route so `/creator/:username/feed.rss` is not
@@ -103,10 +105,10 @@ export function publicRoutes(app: Web<AppState>): void {
 
 		// A draft 404s here exactly as a missing post does, so its existence is
 		// not observable from outside. The author previews it at /preview/:slug.
-		const post = await findPublishedPost(creator.username, slug);
+		const [post, customization] = await Promise.all([findPublishedPost(creator.username, slug), findCustomization(creator.username)]);
 		if (!post) throw new ApiError(ErrorCode.POST_NOT_FOUND);
 
-		return ctx.html(renderPostPage(creator, post));
+		return ctx.html(renderPostPage(creator, post, {}, customization));
 	});
 
 	/**
@@ -121,14 +123,14 @@ export function publicRoutes(app: Web<AppState>): void {
 		const slug = ctx.params.slug ?? "";
 		if (!isSlugValid(slug)) throw new ApiError(ErrorCode.POST_NOT_FOUND);
 
-		const post = await findPost(creator.username, slug);
+		const [post, customization] = await Promise.all([findPost(creator.username, slug), findCustomization(creator.username)]);
 		if (!post) throw new ApiError(ErrorCode.POST_NOT_FOUND);
 		const actor = ctx.get("actor");
 		if (!actor.isOwner && !actor.canEditAll && post.status !== "published" && post.created_by !== actor.username) {
 			throw new ApiError(ErrorCode.POST_NOT_FOUND);
 		}
 
-		return ctx.html(renderPostPage(creator, post, { preview: true }), 200, {
+		return ctx.html(renderPostPage(creator, post, { preview: true }, customization), 200, {
 			"Cache-Control": "no-store, private",
 			"X-Robots-Tag": "noindex, nofollow",
 		});

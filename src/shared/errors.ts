@@ -78,4 +78,6 @@ export enum ErrorCode {
 	EMAIL_DELIVERY_FAILED = 1123,
 	/** Email confirmation is not configured on this instance. */
 	EMAIL_CONFIRMATION_UNAVAILABLE = 1124,
+	/** Custom colors, CSS or a page template did not pass validation. */
+	INVALID_CUSTOMIZATION = 1125,
 }

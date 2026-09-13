@@ -1,11 +1,13 @@
 import { config } from "../config.ts";
 import { avatarUrl, pictureUrl } from "../lib/storage.ts";
-import { parseSocial, type CreatorRow } from "../db/creators.ts";
+import { parseSocial, parseThemeColors, type CreatorRow } from "../db/creators.ts";
+import { EMPTY_CUSTOMIZATION, type CreatorCustomization } from "../db/customizations.ts";
 import type { PostFilter, PostRow, PostSummaryRow } from "../db/posts.ts";
 import { escapeHtml } from "./markdown.ts";
 import { renderMarkdown } from "./markdown.ts";
 import { formatDate, renderPage, renderSocial, siteSocial, type PageMeta } from "./layout.ts";
 import { BLOG_JS_ASSET, LOGO_PNG_ASSET, LOGO_SVG_ASSET } from "../lib/public-assets.ts";
+import { renderTemplate } from "../lib/customization.ts";
 
 const domain = config.server.domain;
 
@@ -37,7 +39,37 @@ function feedLink(username: string): string {
 }
 
 function themeOf(creator: CreatorRow): string {
-	return creator.theme === "dark" || creator.theme === "light" ? creator.theme : "auto";
+	return creator.theme === "dark" || creator.theme === "light" || creator.theme === "custom" ? creator.theme : "auto";
+}
+
+function isDarkColor(hex: string): boolean {
+	const red = Number.parseInt(hex.slice(1, 3), 16) / 255;
+	const green = Number.parseInt(hex.slice(3, 5), 16) / 255;
+	const blue = Number.parseInt(hex.slice(5, 7), 16) / 255;
+	const linear = (value: number) => (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+	return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue) < 0.18;
+}
+
+function creatorCss(creator: CreatorRow, customization: CreatorCustomization): string {
+	const custom = customization.customCss.trim();
+	if (creator.theme !== "custom") return custom;
+	const colors = parseThemeColors(creator.theme_colors);
+	const theme = `[data-theme="custom"] {
+	color-scheme: ${isDarkColor(colors.background) ? "dark" : "light"};
+	--bg: ${colors.background};
+	--surface: ${colors.surface};
+	--text: ${colors.text};
+	--muted: ${colors.muted};
+	--border: ${colors.border};
+	--accent: ${colors.accent};
+	--accent-hover: color-mix(in srgb, ${colors.accent} 82%, black);
+	--code-bg: color-mix(in srgb, ${colors.surface} 84%, ${colors.text});
+	--scroll-track: ${colors.surface};
+	--scroll-thumb: ${colors.border};
+	--scroll-thumb-hover: ${colors.muted};
+	--shadow: 0 18px 50px color-mix(in srgb, ${colors.text} 10%, transparent);
+}`;
+	return custom.length === 0 ? theme : `${theme}\n${custom}`;
 }
 
 function topicUrl(topic?: string): string {
@@ -225,6 +257,7 @@ export function renderCreatorPage(
 	posts: PostSummaryRow[],
 	filter: PostFilter = {},
 	paging: Pagination = { page: 1, total: posts.length, perPage: posts.length || 1 },
+	customization: CreatorCustomization = EMPTY_CUSTOMIZATION,
 ): string {
 	const social = parseSocial(creator.social);
 	const cards = posts.map((post) => postCard(creator, post)).join("\n");
@@ -232,19 +265,29 @@ export function renderCreatorPage(
 	const base = `/creator/${creator.username}`;
 	const hasMore = paging.page * paging.perPage < paging.total;
 
-	const body = `<main class="wrap">
-<header class="masthead">
+	const header = `<header class="masthead">
 	<h1><a href="/creator/${escapeHtml(creator.username)}">${escapeHtml(creator.title)}</a></h1>${renderTagline(creator.description)}
 	${renderSocial(social, feedLink(creator.username))}
-</header>
-${renderSearch(creator.username, filter.search ?? "")}
-${filter.tag === undefined ? "" : `${renderTagNote(creator.username, filter.tag)}\n`}${
-		posts.length === 0 ? `<p class="empty">${emptyMessage(filter)}</p>` : `<div class="grid">\n${cards}\n</div>`
-	}${
-		hasMore
-			? `\n<div class="more-wrap"><a class="more" rel="next" href="${escapeHtml(base)}${escapeHtml(listingQuery(filter, paging.page + 1))}">Load more posts</a></div>\n<script src="${BLOG_JS_ASSET.path}" defer></script>`
-			: ""
-	}
+</header>`;
+	const search = renderSearch(creator.username, filter.search ?? "");
+	const filterNote = filter.tag === undefined ? "" : renderTagNote(creator.username, filter.tag);
+	const postList = posts.length === 0 ? `<p class="empty">${emptyMessage(filter)}</p>` : `<div class="grid">\n${cards}\n</div>`;
+	const pagination = hasMore
+		? `<div class="more-wrap"><a class="more" rel="next" href="${escapeHtml(base)}${escapeHtml(listingQuery(filter, paging.page + 1))}">Load more posts</a></div>\n<script src="${BLOG_JS_ASSET.path}" defer></script>`
+		: "";
+	const body =
+		customization.homeTemplate.length > 0
+			? renderTemplate(customization.homeTemplate, {
+					"bloggy-header": header,
+					"bloggy-search": search,
+					"bloggy-filter": filterNote,
+					"bloggy-posts": postList,
+					"bloggy-pagination": pagination,
+				})
+			: `<main class="wrap">
+${header}
+${search}
+${filterNote}${postList}${pagination}
 </main>`;
 
 	// A tag page is a real, bounded view of the blog and worth indexing under
@@ -268,6 +311,7 @@ ${filter.tag === undefined ? "" : `${renderTagNote(creator.username, filter.tag)
 			author: creator.author,
 			twitterCreator: social.twitter,
 			theme: themeOf(creator),
+			customCss: creatorCss(creator, customization),
 			feeds: feedsFor(creator.username),
 			noindex: filter.search !== undefined,
 			jsonLd: {
@@ -288,7 +332,12 @@ export interface PostPageOptions {
 	preview?: boolean;
 }
 
-export function renderPostPage(creator: CreatorRow, post: PostRow, options: PostPageOptions = {}): string {
+export function renderPostPage(
+	creator: CreatorRow,
+	post: PostRow,
+	options: PostPageOptions = {},
+	customization: CreatorCustomization = EMPTY_CUSTOMIZATION,
+): string {
 	const social = parseSocial(creator.social);
 	const url = postUrl(creator.username, post.slug);
 	const picture = pictureUrl(creator.username, post.picture);
@@ -300,36 +349,51 @@ export function renderPostPage(creator: CreatorRow, post: PostRow, options: Post
 	const shareText = encodeURIComponent(`${post.title}\n\n${url}`);
 	const content = renderMarkdown(post.markdown);
 
-	const body = `<main class="wrap">
-<header class="masthead">
+	const header = `<header class="masthead">
 	<h2><a href="/creator/${escapeHtml(creator.username)}">${escapeHtml(creator.title)}</a></h2>${renderTagline(creator.description)}
 	${renderSocial(social, feedLink(creator.username))}
-</header>
-<article class="post narrow">
-${
-	options.preview === true
-		? `<div class="preview-banner">${
-				post.status === "published"
-					? "Preview of a published post."
-					: `This post is ${post.status === "review" ? "in review" : post.status === "changes" ? "waiting for changes" : "a draft"}. Only your team can see this page, and it is hidden from your blog, feeds and search engines.`
-			}</div>`
-		: ""
-}
-	<h1>${escapeHtml(post.title)}</h1>
-	<div class="byline">
+	</header>`;
+	const preview =
+		options.preview === true
+			? `<div class="preview-banner">${
+					post.status === "published"
+						? "Preview of a published post."
+						: `This post is ${post.status === "review" ? "in review" : post.status === "changes" ? "waiting for changes" : "a draft"}. Only your team can see this page, and it is hidden from your blog, feeds and search engines.`
+				}</div>`
+			: "";
+	const postTitle = `<h1>${escapeHtml(post.title)}</h1>`;
+	const byline = `<div class="byline">
 		<a href="/creator/${escapeHtml(creator.username)}"><img src="${escapeHtml(avatarUrl(creator.username))}" alt="${escapeHtml(creator.author)}"></a>
 		<div>
 			<a class="name" href="/creator/${escapeHtml(creator.username)}">${escapeHtml(creator.author)}</a>
 			<time datetime="${escapeHtml(post.published_at ?? post.created_at)}">${escapeHtml(formatDate(post.published_at ?? post.created_at))}</time> &middot; ${post.read_time} min read
 		</div>
-	</div>
-	<div class="content">
+	</div>`;
+	const postContent = `<div class="content">
 ${content}
-	</div>
-	<a class="share" href="https://twitter.com/intent/tweet?text=${shareText}" target="_blank" rel="noopener">
+	</div>`;
+	const share = `<a class="share" href="https://twitter.com/intent/tweet?text=${shareText}" target="_blank" rel="noopener">
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 4.01c-1 .49-1.98 .689-3 .99c-1.121-1.265-2.783-1.335-4.38-.737s-2.643 2.06-2.62 3.737v1c-3.245 .083-6.135-1.395-8-4c0 0-4.182 7.433 4 11c-1.872 1.247-3.739 2.088-6 2c3.308 1.803 6.913 2.423 10.034 1.517c3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84 0 0 0 .497-3.753c-.002-.249 1.51-2.772 1.818-4.013z"/></svg>
 		Share
-	</a>
+	</a>`;
+	const body =
+		customization.postTemplate.length > 0
+			? renderTemplate(customization.postTemplate, {
+					"bloggy-header": header,
+					"bloggy-preview": preview,
+					"bloggy-post-title": postTitle,
+					"bloggy-byline": byline,
+					"bloggy-post-content": postContent,
+					"bloggy-share": share,
+				})
+			: `<main class="wrap">
+${header}
+<article class="post narrow">
+${preview}
+${postTitle}
+${byline}
+${postContent}
+${share}
 </article>
 </main>`;
 
@@ -352,6 +416,7 @@ ${content}
 			tag: post.tag,
 			twitterCreator: social.twitter,
 			theme: themeOf(creator),
+			customCss: creatorCss(creator, customization),
 			feeds: feedsFor(creator.username),
 			jsonLd: {
 				"@context": "https://schema.org",

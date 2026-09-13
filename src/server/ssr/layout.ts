@@ -2,6 +2,7 @@ import { config } from "../config.ts";
 import { escapeHtml, escapeJson } from "./markdown.ts";
 import { SOCIAL_LABELS, SOCIAL_PREFIXES } from "../lib/constants.ts";
 import { BLOG_CSS_ASSET } from "../lib/public-assets.ts";
+import { styleContent } from "../lib/customization.ts";
 
 export interface PageMeta {
 	title: string;
@@ -28,6 +29,7 @@ export interface PageMeta {
 	twitterCreator?: string;
 	theme: string;
 	noindex?: boolean;
+	customCss?: string;
 }
 
 function twitterHandle(url: string): string {
@@ -89,6 +91,7 @@ ${article}
 <link rel="icon" href="${escapeHtml(meta.icon)}">
 ${feeds}
 <link rel="stylesheet" href="${BLOG_CSS_ASSET.path}">
+${meta.customCss ? `<style data-bloggy-custom>${styleContent(meta.customCss)}</style>` : ""}
 ${meta.jsonLd === undefined ? "" : `<script type="application/ld+json">${escapeJson(meta.jsonLd)}</script>`}
 ${config.site.analytics}
 </head>

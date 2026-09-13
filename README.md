@@ -300,6 +300,14 @@ The world map ships as a content-fingerprinted panel asset, so it renders withou
 
 Without those variables the page, its nav item and its routes do not exist at all.
 
+## Blog customization
+
+Blog owners can select a light or dark theme, or choose **Custom colors** and set the background, card, text, muted text, border and accent colors with color pickers. The palette applies to the creator home page and every post while Bloggy derives supporting colors for controls and shadows.
+
+The **Advanced customization** section in Settings provides separate HTML layouts for the creator home page and post pages, plus one CSS stylesheet shared by both. Templates arrange server-rendered Bloggy components such as `<bloggy-posts></bloggy-posts>` and `<bloggy-post-content></bloggy-post-content>`, so post data, search, pagination, previews and metadata continue to work. Empty editors use the standard Bloggy layout, and the starter-template button provides a complete editable example.
+
+Advanced HTML is sanitized on the server. Scripts, forms, embedded pages, event handlers, unsafe URLs and document-level elements are rejected because creator pages share an origin with authenticated Bloggy sessions. Custom CSS and each template are limited to 50 kB. Only blog owners can read or update these settings, and saving them invalidates the affected public-page cache immediately.
+
 ## Caching
 
 Rendered pages and public API reads are cached in memory (`CACHE_TTL`, default 5 minutes). Repeat visitors get a small "nothing has changed" reply instead of the whole page, and once an entry ages out the old copy is still served while a fresh one is prepared, so nobody waits. Publishing, editing, unpublishing or deleting a post clears that creator's pages plus the shared landing page and sitemap, rather than the whole cache. Browsers revalidate HTML while shared caches can retain it for `CACHE_TTL` seconds through `s-maxage`.

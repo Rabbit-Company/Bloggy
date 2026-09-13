@@ -1,6 +1,7 @@
 import { clearSession } from "./session.ts";
 import { ErrorCode } from "../shared/errors.ts";
-import type { PostStatus, PublicConfig, TeamRole } from "../shared/constants.ts";
+import type { PostStatus, PublicConfig, TeamRole, ThemeColors } from "../shared/constants.ts";
+import type { CreatorCustomizationInput } from "../shared/customization.ts";
 import worldMapUrl from "./assets/world.svg";
 export type { PostStatus, TeamRole };
 
@@ -74,6 +75,7 @@ export interface Creator {
 	language: string;
 	social: Record<string, string>;
 	theme: string;
+	themeColors: ThemeColors;
 	twoFactorEnabled: boolean;
 	isAdmin: boolean;
 	suspendedAt: string | null;
@@ -200,6 +202,11 @@ export interface Settings {
 	category: string;
 	language: string;
 	theme: string;
+	themeColors: ThemeColors;
+}
+
+export interface CreatorCustomization extends CreatorCustomizationInput {
+	updatedAt: string | null;
 }
 
 export const api = {
@@ -207,7 +214,7 @@ export const api = {
 		return request<PublicConfig>("/api/v1/config", {}, false);
 	},
 
-	register(input: Settings & { username: string; password: string; email: string }) {
+	register(input: Omit<Settings, "themeColors"> & { username: string; password: string; email: string; themeColors?: ThemeColors }) {
 		return request<{ username: string; emailConfirmationRequired: boolean }>("/api/v1/auth/register", { method: "POST", body: json(input) }, false);
 	},
 
@@ -290,6 +297,14 @@ export const api = {
 
 	updateSettings(settings: Settings) {
 		return request<Settings>("/api/v1/creators/me/settings", { method: "POST", body: json(settings) });
+	},
+
+	customization() {
+		return request<CreatorCustomization>("/api/v1/creators/me/customization");
+	},
+
+	updateCustomization(customization: CreatorCustomizationInput) {
+		return request<CreatorCustomization>("/api/v1/creators/me/customization", { method: "POST", body: json(customization) });
 	},
 
 	updateSocial(social: Record<string, string>) {

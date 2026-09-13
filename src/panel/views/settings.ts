@@ -1,7 +1,9 @@
 import { QRCode, ErrorCorrectionLevel } from "@rabbit-company/qrcode";
 import PasswordEntropy from "@rabbit-company/password-entropy";
-import { api, type Creator, type Session } from "../api.ts";
-import { CATEGORIES, LANGUAGES, SOCIAL_PLATFORMS, THEMES, instanceConfig } from "../constants.ts";
+import { api, type Creator, type CreatorCustomization, type Session } from "../api.ts";
+import { CATEGORIES, DEFAULT_THEME_COLORS, LANGUAGES, SOCIAL_PLATFORMS, THEMES, instanceConfig } from "../constants.ts";
+import { HOME_STARTER_TEMPLATE, HOME_TEMPLATE_COMPONENTS, POST_STARTER_TEMPLATE, POST_TEMPLATE_COMPONENTS } from "../../shared/customization.ts";
+import type { ThemeColors } from "../../shared/constants.ts";
 import { clearSession, setCreator } from "../session.ts";
 import { compressImage, confirm, el, field, formatDateTime, modal, render, setHtml, toast } from "../ui.ts";
 import { navigate } from "../router.ts";
@@ -19,6 +21,15 @@ function select(name: string, options: readonly (string | { value: string; label
 function labelled(label: string, control: HTMLElement, help?: string): HTMLElement {
 	return el("label", { class: "field", for: control.id }, el("span", {}, label), control, help !== undefined && el("span", { class: "help" }, help));
 }
+
+const COLOR_FIELDS: { key: keyof ThemeColors; label: string }[] = [
+	{ key: "background", label: "Background" },
+	{ key: "surface", label: "Cards" },
+	{ key: "text", label: "Text" },
+	{ key: "muted", label: "Muted text" },
+	{ key: "border", label: "Borders" },
+	{ key: "accent", label: "Accent" },
+];
 
 function backupCodes(codes: string[]): HTMLElement {
 	const blob = new Blob([`Bloggy backup codes\n\n${codes.join("\n")}\n`], { type: "text/plain" });
@@ -38,13 +49,19 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 	let creator: Creator;
 	let backupCodesRemaining = 0;
 	let sessions: Session[] = [];
+	let customization: CreatorCustomization = { customCss: "", homeTemplate: "", postTemplate: "", updatedAt: null };
 
 	try {
 		const me = await api.me();
 		creator = me.creator;
 		backupCodesRemaining = me.backupCodesRemaining;
 		setCreator(creator);
-		sessions = (await api.sessions()).sessions;
+		const [sessionResult, customizationResult] = await Promise.all([
+			api.sessions(),
+			creator.membership?.isOwner === false ? Promise.resolve(null) : api.customization(),
+		]);
+		sessions = sessionResult.sessions;
+		if (customizationResult) customization = customizationResult;
 	} catch (err) {
 		render(root, el("div", { class: "empty" }, err instanceof Error ? err.message : "Could not load your settings."));
 		return;
@@ -61,6 +78,19 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 	const category = select("category", CATEGORIES, creator.category);
 	const language = select("language", LANGUAGES, creator.language);
 	const theme = select("theme", THEMES, creator.theme);
+	const savedColors = creator.themeColors ?? DEFAULT_THEME_COLORS;
+	const colorInputs = Object.fromEntries(
+		COLOR_FIELDS.map(({ key }) => [key, el("input", { id: `theme-${key}`, type: "color", value: savedColors[key] })]),
+	) as Record<keyof ThemeColors, HTMLInputElement>;
+	const colorPicker = el(
+		"div",
+		{ class: "theme-colors", hidden: theme.value !== "custom" },
+		el("div", { class: "theme-colors-head" }, el("strong", {}, "Custom palette"), el("span", {}, "Changes apply to your home page and every post.")),
+		el("div", { class: "color-grid" }, ...COLOR_FIELDS.map(({ key, label }) => labelled(label, colorInputs[key]))),
+	);
+	theme.addEventListener("change", () => {
+		colorPicker.hidden = theme.value !== "custom";
+	});
 	const saveSettings = el("button", { class: "button primary" }, "Save settings");
 
 	saveSettings.addEventListener("click", async () => {
@@ -73,6 +103,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 				category: category.value,
 				language: language.value,
 				theme: theme.value,
+				themeColors: Object.fromEntries(COLOR_FIELDS.map(({ key }) => [key, colorInputs[key].value])) as unknown as ThemeColors,
 			});
 			toast("Settings saved.", "success");
 			reload();
@@ -129,6 +160,92 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 			saveSocial.disabled = false;
 		}
 	});
+
+	const homeTemplate = el("textarea", {
+		id: "home-template",
+		class: "code customization-editor",
+		rows: "14",
+		spellcheck: "false",
+		placeholder: "Leave empty to use the standard Bloggy home page.",
+	});
+	homeTemplate.value = customization.homeTemplate;
+	const postTemplate = el("textarea", {
+		id: "post-template",
+		class: "code customization-editor",
+		rows: "14",
+		spellcheck: "false",
+		placeholder: "Leave empty to use the standard Bloggy post page.",
+	});
+	postTemplate.value = customization.postTemplate;
+	const customCss = el("textarea", {
+		id: "custom-css",
+		class: "code customization-editor css-editor",
+		rows: "14",
+		spellcheck: "false",
+		placeholder: ".custom-home {\n  max-width: 72rem;\n  margin: 0 auto;\n}",
+	});
+	customCss.value = customization.customCss;
+	const saveCustomization = el("button", { class: "button primary" }, "Save customization");
+	const starterTemplates = el("button", { class: "button ghost" }, "Load starter templates");
+	const restoreTemplates = el("button", { class: "button quiet danger" }, "Restore Bloggy defaults");
+
+	saveCustomization.addEventListener("click", async () => {
+		saveCustomization.disabled = true;
+		try {
+			await api.updateCustomization({
+				customCss: customCss.value,
+				homeTemplate: homeTemplate.value,
+				postTemplate: postTemplate.value,
+			});
+			toast("Customization saved.", "success");
+			reload();
+		} catch (err) {
+			toast(err instanceof Error ? err.message : "Could not save the customization.", "error");
+		} finally {
+			saveCustomization.disabled = false;
+		}
+	});
+
+	starterTemplates.addEventListener("click", async () => {
+		if (
+			(homeTemplate.value.trim() !== "" || postTemplate.value.trim() !== "") &&
+			!(await confirm({
+				title: "Replace your templates?",
+				body: [el("p", {}, "This replaces the text currently in both template editors. Your saved version remains active until you save again.")],
+				confirmLabel: "Load starters",
+			}))
+		)
+			return;
+		homeTemplate.value = HOME_STARTER_TEMPLATE;
+		postTemplate.value = POST_STARTER_TEMPLATE;
+		homeTemplate.focus();
+	});
+
+	restoreTemplates.addEventListener("click", async () => {
+		if (
+			!(await confirm({
+				title: "Restore Bloggy defaults?",
+				body: [el("p", {}, "Your custom HTML and CSS will be removed. Your colors and other blog settings stay unchanged.")],
+				confirmLabel: "Restore defaults",
+				danger: true,
+			}))
+		)
+			return;
+
+		restoreTemplates.disabled = true;
+		try {
+			await api.updateCustomization({ customCss: "", homeTemplate: "", postTemplate: "" });
+			toast("Bloggy templates restored.", "success");
+			reload();
+		} catch (err) {
+			toast(err instanceof Error ? err.message : "Could not restore the templates.", "error");
+		} finally {
+			restoreTemplates.disabled = false;
+		}
+	});
+
+	const componentList = (items: readonly string[]) =>
+		el("div", { class: "component-list" }, ...items.map((component) => el("code", {}, `<${component}></${component}>`)));
 
 	async function changePassword(): Promise<void> {
 		const values = await modal({
@@ -314,6 +431,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 				el("div", { class: "row" }, labelled("Title", title), labelled("Author name", author)),
 				labelled("Description", description, "30 to 160 characters."),
 				el("div", { class: "row" }, labelled("Category", category), labelled("Language", language), labelled("Theme", theme)),
+				colorPicker,
 				el("div", { class: "actions" }, saveSettings),
 			),
 
@@ -340,6 +458,58 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 				el("p", { class: "hint" }, "Shown under your blog's title. Leave a field empty to hide it."),
 				el("div", { class: "row" }, ...socialInputs.map(({ platform, input }) => labelled(platform.label, input))),
 				el("div", { class: "actions" }, saveSocial),
+			),
+
+		isOwner &&
+			el(
+				"div",
+				{ class: "card customization-card" },
+				el(
+					"div",
+					{ class: "card-top" },
+					el("div", {}, el("h2", {}, "Advanced customization"), el("p", { class: "hint" }, "Build a unique layout with HTML components and your own CSS.")),
+				),
+				el(
+					"div",
+					{ class: "customization-notice" },
+					el("strong", {}, "Designed to stay safe"),
+					el(
+						"p",
+						{},
+						"Scripts, forms, embedded pages, event handlers and unsafe links are blocked. Bloggy keeps metadata and dynamic content working for you.",
+					),
+				),
+				el(
+					"details",
+					{ class: "customization-section", open: customization.homeTemplate.length > 0 },
+					el("summary", {}, el("span", {}, "Creator home template"), el("small", {}, "HTML")),
+					el("p", { class: "help" }, "Arrange these components inside your own semantic HTML. The posts component is required."),
+					componentList(HOME_TEMPLATE_COMPONENTS),
+					labelled("Home template", homeTemplate),
+				),
+				el(
+					"details",
+					{ class: "customization-section", open: customization.postTemplate.length > 0 },
+					el("summary", {}, el("span", {}, "Post template"), el("small", {}, "HTML")),
+					el("p", { class: "help" }, "The post content component is required. Other components can be omitted or moved."),
+					componentList(POST_TEMPLATE_COMPONENTS),
+					labelled("Post template", postTemplate),
+				),
+				el(
+					"details",
+					{ class: "customization-section", open: customization.customCss.length > 0 },
+					el("summary", {}, el("span", {}, "Custom stylesheet"), el("small", {}, "CSS")),
+					el("p", { class: "help" }, "Your CSS loads after the Bloggy stylesheet and applies to both public page types."),
+					labelled("Custom CSS", customCss),
+				),
+				el(
+					"div",
+					{ class: "actions customization-actions" },
+					saveCustomization,
+					starterTemplates,
+					el("a", { class: "button ghost", href: `/creator/${creator.username}`, target: "_blank", rel: "noopener" }, "Open blog"),
+					restoreTemplates,
+				),
 			),
 
 		el(

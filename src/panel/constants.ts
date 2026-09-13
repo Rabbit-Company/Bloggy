@@ -1,6 +1,15 @@
 import type { PublicConfig } from "../shared/constants.ts";
 
-export { CATEGORIES, COMMON_LANGUAGES as LANGUAGES, PANEL_BASE, SOCIAL_PLATFORMS, THEMES, POST_MAX_WORDS, POST_MIN_WORDS } from "../shared/constants.ts";
+export {
+	CATEGORIES,
+	COMMON_LANGUAGES as LANGUAGES,
+	DEFAULT_THEME_COLORS,
+	PANEL_BASE,
+	SOCIAL_PLATFORMS,
+	THEMES,
+	POST_MAX_WORDS,
+	POST_MIN_WORDS,
+} from "../shared/constants.ts";
 
 let instance: PublicConfig = {
 	registrationEnabled: true,

@@ -1,5 +1,6 @@
 import {
 	CATEGORIES,
+	DEFAULT_THEME_COLORS,
 	LANGUAGES,
 	POST_MAX_MARKDOWN_BYTES,
 	POST_MAX_WORDS,
@@ -10,7 +11,7 @@ import {
 	THEMES,
 	WORDS_PER_MINUTE,
 } from "./constants.ts";
-import type { PostStatus } from "../../shared/constants.ts";
+import type { PostStatus, ThemeColors } from "../../shared/constants.ts";
 import { ApiError, ErrorCode } from "./errors.ts";
 
 const categorySet: ReadonlySet<string> = new Set(CATEGORIES);
@@ -72,6 +73,13 @@ export function isLanguageValid(value: unknown): value is string {
 
 export function isThemeValid(value: unknown): value is string {
 	return isString(value) && themeSet.has(value);
+}
+
+export function isThemeColorsValid(value: unknown): value is ThemeColors {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+	const colors = value as Record<string, unknown>;
+	const keys = Object.keys(DEFAULT_THEME_COLORS);
+	return Object.keys(colors).length === keys.length && keys.every((key) => typeof colors[key] === "string" && /^#[0-9a-fA-F]{6}$/.test(colors[key]));
 }
 
 export function isImageTypeSupported(value: unknown): value is string {

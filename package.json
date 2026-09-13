@@ -1,6 +1,6 @@
 {
 	"name": "bloggy",
-	"version": "1.2.0",
+	"version": "1.3.0",
 	"description": "Easy-to-use blogging platform for creators",
 	"type": "module",
 	"license": "EUPL-1.2",
