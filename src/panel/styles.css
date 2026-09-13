@@ -231,6 +231,36 @@ main {
 	color: var(--muted);
 	font-size: 0.95rem;
 }
+.analytics-head {
+	flex-direction: column;
+}
+.analytics-head > .actions {
+	justify-content: flex-start;
+}
+.analytics-controls {
+	gap: 0.8rem;
+}
+.analytics-segment {
+	display: inline-flex;
+}
+.analytics-segment .button {
+	border-radius: 0;
+}
+.analytics-segment .button + .button {
+	margin-left: -1px;
+}
+.analytics-segment .button:first-child {
+	border-radius: 8px 0 0 8px;
+}
+.analytics-segment .button:last-child {
+	border-radius: 0 8px 8px 0;
+}
+.analytics-segment .button:hover,
+.analytics-segment .button:focus-visible,
+.analytics-segment .button.primary {
+	position: relative;
+	z-index: 1;
+}
 
 .card {
 	background: var(--surface);

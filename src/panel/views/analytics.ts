@@ -226,9 +226,15 @@ export async function renderAnalytics(root: HTMLElement): Promise<void> {
 		root,
 		el(
 			"div",
-			{ class: "page-head" },
+			{ class: "page-head analytics-head" },
 			el("div", {}, el("h1", {}, "Analytics"), el("p", {}, subtitle)),
-			el("div", { class: "actions" }, picker, ...metrics, ...windows),
+			el(
+				"div",
+				{ class: "actions analytics-controls" },
+				picker,
+				el("div", { class: "analytics-segment", role: "group", "aria-label": "Metric" }, ...metrics),
+				el("div", { class: "analytics-segment", role: "group", "aria-label": "Time range" }, ...windows),
+			),
 		),
 		tabs,
 		body,
