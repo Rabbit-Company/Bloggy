@@ -4,11 +4,13 @@ import { ok } from "../lib/response.ts";
 import { requireOwner } from "../middleware/auth.ts";
 import {
 	ANALYTICS_HOURS,
+	ANALYTICS_METRICS,
 	ANALYTICS_VIEWS,
 	BurrowGateError,
 	analyticsEnabled,
 	fetchAnalytics,
 	type AnalyticsHours,
+	type AnalyticsMetric,
 	type AnalyticsView,
 } from "../lib/burrowgate.ts";
 import { listPostsByCreator } from "../db/posts.ts";
@@ -38,12 +40,16 @@ export function analyticsRoutes(app: Web<AppState>): void {
 		const query = ctx.query();
 		const view = query.get("view") ?? "overview";
 		const hours = Number.parseInt(query.get("hours") ?? "168", 10);
+		const metric = query.get("metric") ?? "requests";
 
 		if (!(ANALYTICS_VIEWS as readonly string[]).includes(view)) {
 			throw new ApiError(ErrorCode.MISSING_FIELDS, `Unknown view. Available: ${ANALYTICS_VIEWS.join(", ")}`);
 		}
 		if (!(ANALYTICS_HOURS as readonly number[]).includes(hours)) {
 			throw new ApiError(ErrorCode.MISSING_FIELDS, `Hours must be one of ${ANALYTICS_HOURS.join(", ")}`);
+		}
+		if (!(ANALYTICS_METRICS as readonly string[]).includes(metric)) {
+			throw new ApiError(ErrorCode.MISSING_FIELDS, `Metric must be one of ${ANALYTICS_METRICS.join(", ")}`);
 		}
 
 		const username = ctx.get("creator").username;
@@ -57,7 +63,7 @@ export function analyticsRoutes(app: Web<AppState>): void {
 		}
 
 		try {
-			const data = await fetchAnalytics(view as AnalyticsView, hours as AnalyticsHours, username, slug);
+			const data = await fetchAnalytics(view as AnalyticsView, hours as AnalyticsHours, username, slug, metric as AnalyticsMetric);
 			if (view === "paths") data.rows = await describePaths(username, data.rows);
 			return ok(ctx, data);
 		} catch (err) {

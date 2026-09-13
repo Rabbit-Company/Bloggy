@@ -5,12 +5,17 @@ export const ANALYTICS_VIEWS = ["overview", "paths", "geography", "referrers"] a
 
 export type AnalyticsView = (typeof ANALYTICS_VIEWS)[number];
 
+export const ANALYTICS_METRICS = ["requests", "uniqueIps"] as const;
+
+export type AnalyticsMetric = (typeof ANALYTICS_METRICS)[number];
+
 export const ANALYTICS_HOURS = [24, 168, 720] as const;
 
 export type AnalyticsHours = (typeof ANALYTICS_HOURS)[number];
 
 export interface AnalyticsResult {
 	view: string;
+	metric?: string;
 	pathPrefix?: string | null;
 	path?: string | null;
 	successfulOnly?: boolean;
@@ -34,7 +39,13 @@ export function analyticsEnabled(): boolean {
 	return url.length > 0 && token.length > 0 && siteId.length > 0;
 }
 
-export async function fetchAnalytics(view: AnalyticsView, hours: AnalyticsHours, username: string, slug?: string): Promise<AnalyticsResult> {
+export async function fetchAnalytics(
+	view: AnalyticsView,
+	hours: AnalyticsHours,
+	username: string,
+	slug?: string,
+	metric: AnalyticsMetric = "requests",
+): Promise<AnalyticsResult> {
 	if (!analyticsEnabled()) throw new BurrowGateError("Analytics is not configured on this instance.");
 
 	const base = `/creator/${username}`;
@@ -45,6 +56,7 @@ export async function fetchAnalytics(view: AnalyticsView, hours: AnalyticsHours,
 	url.searchParams.set("hours", String(hours));
 	url.searchParams.set("siteId", config.burrowgate.siteId);
 	url.searchParams.set("successfulOnly", "true");
+	url.searchParams.set("metric", metric);
 	if (exactPath === undefined) url.searchParams.set("pathPrefix", base);
 	else url.searchParams.set("path", exactPath);
 
@@ -99,6 +111,13 @@ export async function fetchAnalytics(view: AnalyticsView, hours: AnalyticsHours,
 	if (result.successfulOnly !== true) {
 		logger.warn("BurrowGate did not exclude error responses from analytics", { view });
 	}
+
+	const appliedMetric = result.metric ?? "requests";
+	if (appliedMetric !== metric) {
+		logger.error("BurrowGate did not apply the requested analytics metric", { view, requested: metric, applied: result.metric ?? null });
+		throw new BurrowGateError("The analytics gateway did not apply the selected metric. Upgrade BurrowGate to a version that supports unique IP analytics.");
+	}
+	result.metric = appliedMetric;
 
 	return result;
 }

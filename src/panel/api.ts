@@ -161,6 +161,7 @@ export interface MediaItem {
 
 export interface AnalyticsResult {
 	view: string;
+	metric: "requests" | "uniqueIps";
 	title: string;
 	unit: string;
 	hours: number;
@@ -382,8 +383,8 @@ export const api = {
 	 * `page` is a slug (or "home"), never a path: the server builds the path
 	 * from the session, so this cannot address another creator's pages.
 	 */
-	analytics(view: string, hours: number, page?: string) {
-		const query = `view=${encodeURIComponent(view)}&hours=${hours}${page === undefined ? "" : `&page=${encodeURIComponent(page)}`}`;
+	analytics(view: string, hours: number, metric: "requests" | "uniqueIps", page?: string) {
+		const query = `view=${encodeURIComponent(view)}&hours=${hours}&metric=${encodeURIComponent(metric)}${page === undefined ? "" : `&page=${encodeURIComponent(page)}`}`;
 		return request<AnalyticsResult>(`/api/v1/analytics?${query}`);
 	},
 

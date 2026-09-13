@@ -17,6 +17,7 @@ const TABS = [
 
 let currentView: string = "overview";
 let currentHours = 168;
+let currentMetric: "requests" | "uniqueIps" = "requests";
 let currentPage: string | undefined;
 let pageOptions: { value: string; label: string }[] | null = null;
 
@@ -62,7 +63,11 @@ function table(data: AnalyticsResult, heading: string): HTMLElement {
 	return el(
 		"table",
 		{ class: "data" },
-		el("thead", {}, el("tr", {}, el("th", {}, heading), el("th", {}, "Requests"), el("th", { style: "width:40%" }, ""))),
+		el(
+			"thead",
+			{},
+			el("tr", {}, el("th", {}, heading), el("th", {}, data.metric === "uniqueIps" ? "Unique IPs" : "Page views"), el("th", { style: "width:40%" }, "")),
+		),
 		el(
 			"tbody",
 			{},
@@ -90,7 +95,7 @@ function countryName(code: string): string {
 	}
 }
 
-async function worldMap(rows: { label: string; value: number }[]): Promise<HTMLElement> {
+async function worldMap(rows: { label: string; value: number }[], metric: AnalyticsResult["metric"]): Promise<HTMLElement> {
 	const host = el("div", { class: "map" }, el("div", { class: "loading" }, el("span", { class: "spinner" }), " Loading map…"));
 
 	try {
@@ -108,7 +113,7 @@ async function worldMap(rows: { label: string; value: number }[]): Promise<HTMLE
 			for (const shape of shapes) {
 				(shape as SVGElement).style.fill = `color-mix(in srgb, var(--accent) ${Math.round(15 + intensity * 85)}%, var(--surface-2))`;
 				const title = parsed.createElementNS("http://www.w3.org/2000/svg", "title");
-				title.textContent = `${countryName(code)}: ${value.toLocaleString()} requests`;
+				title.textContent = `${countryName(code)}: ${value.toLocaleString()} ${metric === "uniqueIps" ? "unique IPs" : "page views"}`;
 				shape.appendChild(title);
 			}
 		}
@@ -175,6 +180,26 @@ export async function renderAnalytics(root: HTMLElement): Promise<void> {
 		),
 	);
 
+	const metrics = (
+		[
+			{ value: "requests", label: "Page views" },
+			{ value: "uniqueIps", label: "Unique IPs" },
+		] as const
+	).map((option) =>
+		el(
+			"button",
+			{
+				class: `button small ${option.value === currentMetric ? "primary" : "ghost"}`,
+				"aria-pressed": option.value === currentMetric ? "true" : "false",
+				onClick: () => {
+					currentMetric = option.value;
+					void renderAnalytics(root);
+				},
+			},
+			option.label,
+		),
+	);
+
 	const picker = el(
 		"select",
 		{
@@ -191,11 +216,20 @@ export async function renderAnalytics(root: HTMLElement): Promise<void> {
 	);
 
 	const subtitle =
-		currentPage === undefined ? "Requests served by the gateway in front of this blog." : "Requests served for this page. Errors and probes are excluded.";
+		currentMetric === "uniqueIps"
+			? "Unique IPs are only an estimate of readership. Shared and changing addresses can affect the count."
+			: currentPage === undefined
+				? "Page views served by the gateway in front of this blog."
+				: "Page views served for this page. Errors and probes are excluded.";
 
 	render(
 		root,
-		el("div", { class: "page-head" }, el("div", {}, el("h1", {}, "Analytics"), el("p", {}, subtitle)), el("div", { class: "actions" }, picker, ...windows)),
+		el(
+			"div",
+			{ class: "page-head" },
+			el("div", {}, el("h1", {}, "Analytics"), el("p", {}, subtitle)),
+			el("div", { class: "actions" }, picker, ...metrics, ...windows),
+		),
 		tabs,
 		body,
 	);
@@ -211,7 +245,7 @@ export async function renderAnalytics(root: HTMLElement): Promise<void> {
 
 	let data: AnalyticsResult;
 	try {
-		data = await api.analytics(currentView, currentHours, currentPage);
+		data = await api.analytics(currentView, currentHours, currentMetric, currentPage);
 	} catch (err) {
 		body.replaceChildren(el("div", { class: "empty" }, err instanceof Error ? err.message : "Could not load analytics."));
 		return;
@@ -236,7 +270,7 @@ export async function renderAnalytics(root: HTMLElement): Promise<void> {
 	}
 
 	if (currentView === "geography") {
-		const map = await worldMap(data.rows);
+		const map = await worldMap(data.rows, data.metric);
 		body.replaceChildren(
 			stats,
 			el("div", { class: "card" }, el("h2", {}, "Where readers are"), map),
@@ -251,7 +285,14 @@ export async function renderAnalytics(root: HTMLElement): Promise<void> {
 	}
 
 	if (currentView === "paths" || currentView === "referrers") {
-		const heading = currentView === "paths" ? "Most read pages" : "Where readers came from";
+		const heading =
+			currentView === "paths"
+				? data.metric === "uniqueIps"
+					? "Pages by audience"
+					: "Most read pages"
+				: data.metric === "uniqueIps"
+					? "Sources by audience"
+					: "Where readers came from";
 		body.replaceChildren(stats, el("div", { class: "card" }, el("h2", {}, heading), table(data, currentView === "paths" ? "Page" : "Referrer")));
 		return;
 	}
