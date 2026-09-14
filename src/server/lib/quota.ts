@@ -1,6 +1,7 @@
 import { config } from "../config.ts";
 import { ApiError, ErrorCode } from "./errors.ts";
 import { mediaUsage } from "../db/media.ts";
+import { additionalStorageAllowance } from "../db/licenses.ts";
 
 export interface StorageQuota {
 	used: number;
@@ -13,7 +14,10 @@ export function quotaDisabled(): boolean {
 }
 
 export async function storageQuota(username: string): Promise<StorageQuota> {
-	return { used: await mediaUsage(username), limit: Math.max(0, config.limits.maxAccountStorage) };
+	const [used, additionalStorage] = await Promise.all([mediaUsage(username), additionalStorageAllowance(username)]);
+	const base = Math.max(0, config.limits.maxAccountStorage);
+	const limit = quotaDisabled() ? 0 : Math.min(Number.MAX_SAFE_INTEGER, base + additionalStorage);
+	return { used, limit };
 }
 
 /**

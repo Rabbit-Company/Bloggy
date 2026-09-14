@@ -183,7 +183,25 @@ export function formatDateTime(iso: string): string {
 export function formatBytes(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} kB`;
-	return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+	if (bytes < 1024 * 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+	return `${(bytes / (1024 * 1024 * 1024 * 1024)).toFixed(2)} TB`;
+}
+
+export function pagination(total: number, limit: number, offset: number, onOffset: (offset: number) => void): HTMLElement | false {
+	if (total <= limit && offset === 0) return false;
+	const start = total === 0 ? 0 : offset + 1;
+	const end = Math.min(total, offset + limit);
+	const previous = el("button", { class: "button small ghost", disabled: offset <= 0 }, "Previous");
+	const next = el("button", { class: "button small ghost", disabled: offset + limit >= total }, "Next");
+	previous.addEventListener("click", () => onOffset(Math.max(0, offset - limit)));
+	next.addEventListener("click", () => onOffset(offset + limit));
+	return el(
+		"nav",
+		{ class: "pagination", "aria-label": "Pagination" },
+		el("span", {}, `${start} to ${end} of ${total}`),
+		el("div", { class: "actions" }, previous, next),
+	);
 }
 
 export function slugify(title: string): string {

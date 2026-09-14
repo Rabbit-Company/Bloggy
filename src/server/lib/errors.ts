@@ -71,6 +71,7 @@ const messages: Record<ErrorCode, string> = {
 	[ErrorCode.EMAIL_DELIVERY_FAILED]: "We could not send the confirmation email. Please try again.",
 	[ErrorCode.EMAIL_CONFIRMATION_UNAVAILABLE]: "Email confirmation is not configured on this instance.",
 	[ErrorCode.INVALID_CUSTOMIZATION]: "The blog customization is invalid.",
+	[ErrorCode.LICENSE_INVALID]: "This license key is invalid, revoked or has already been redeemed.",
 	[ErrorCode.STORAGE_QUOTA_EXCEEDED]:
 		"You have used all of your storage allowance. Delete some images, or contact the administrator to have your limit raised.",
 };
@@ -104,6 +105,7 @@ const statuses: Partial<Record<ErrorCode, number>> = {
 	[ErrorCode.EMAIL_CONFIRMATION_INVALID]: 404,
 	[ErrorCode.EMAIL_DELIVERY_FAILED]: 502,
 	[ErrorCode.EMAIL_CONFIRMATION_UNAVAILABLE]: 409,
+	[ErrorCode.LICENSE_INVALID]: 409,
 	[ErrorCode.RATE_LIMITED]: 429,
 	[ErrorCode.DATABASE_ERROR]: 500,
 	[ErrorCode.WRITE_FAILED]: 500,

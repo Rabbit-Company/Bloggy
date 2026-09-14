@@ -1,5 +1,5 @@
 import { api, type AdminCreator } from "../api.ts";
-import { confirm, el, formatBytes, formatDate, modal, render, toast } from "../ui.ts";
+import { confirm, el, formatBytes, formatDate, modal, pagination, render, toast } from "../ui.ts";
 
 type Sort = "username" | "posts" | "storage" | "created" | "accessed";
 
@@ -13,6 +13,9 @@ const COLUMNS: { key: Sort; label: string; numeric?: boolean }[] = [
 
 let sort: Sort = "storage";
 let descending = true;
+let creatorOffset = 0;
+let creatorSearch = "";
+const PAGE_SIZE = 25;
 
 function badge(row: AdminCreator): HTMLElement | string {
 	if (row.isAdmin) return el("span", { class: "pill admin" }, "admin");
@@ -48,7 +51,7 @@ function syncButton(row: AdminCreator, reload: () => void): HTMLElement {
 	const button = el("button", { class: "button small ghost", title: "Re-read this account's files from storage and recompute usage" }, "Recalculate");
 	button.addEventListener("click", async () => {
 		button.disabled = true;
-		button.textContent = "Working…";
+		button.textContent = "Working...";
 		try {
 			const result = await api.adminSyncMedia(row.username);
 			toast(syncSummary(result.imported, result.pruned, result.skipped.length, formatBytes(result.usage)), "success");
@@ -129,30 +132,48 @@ function header(reload: () => void): HTMLElement {
 					sort = column.key;
 					descending = true;
 				}
+				creatorOffset = 0;
 				reload();
 			});
 			return cell;
 		}),
+		el("th", {}, "Premium"),
+		el("th", {}, "Custom domain"),
 		el("th", {}, "Status"),
 		el("th", {}, ""),
 	);
 }
 
 export async function renderAdmin(root: HTMLElement): Promise<void> {
-	render(root, el("div", { class: "loading" }, el("span", { class: "spinner" }), " Loading accounts…"));
+	render(root, el("div", { class: "loading" }, el("span", { class: "spinner" }), " Loading accounts..."));
 
 	let creators: AdminCreator[];
 	let total = 0;
 	try {
-		const result = await api.adminCreators(sort, descending ? "desc" : "asc");
+		const result = await api.adminCreators(sort, descending ? "desc" : "asc", PAGE_SIZE, creatorOffset, creatorSearch);
 		creators = result.creators;
 		total = result.total;
 	} catch (err) {
 		render(root, el("div", { class: "empty" }, err instanceof Error ? err.message : "Could not load the account list."));
 		return;
 	}
+	if (creatorOffset > 0 && creatorOffset >= total) {
+		creatorOffset = total === 0 ? 0 : Math.floor((total - 1) / PAGE_SIZE) * PAGE_SIZE;
+		return await renderAdmin(root);
+	}
 
 	const reload = () => void renderAdmin(root);
+	const searchInput = el("input", { type: "search", value: creatorSearch, placeholder: "Search username or email...", "aria-label": "Search accounts" });
+	const searchButton = el("button", { class: "button ghost" }, "Search");
+	const applySearch = () => {
+		creatorSearch = searchInput.value.trim();
+		creatorOffset = 0;
+		reload();
+	};
+	searchButton.addEventListener("click", applySearch);
+	searchInput.addEventListener("keydown", (event) => {
+		if ((event as KeyboardEvent).key === "Enter") applySearch();
+	});
 
 	const rows = creators.map((row) =>
 		el(
@@ -162,12 +183,26 @@ export async function renderAdmin(root: HTMLElement): Promise<void> {
 				"td",
 				{},
 				el("a", { href: `/creator/${row.username}`, target: "_blank", rel: "noopener" }, row.username),
-				el("span", { class: "sub" }, `${row.author} · ${row.email}`),
+				el("span", { class: "sub" }, row.email),
+				el("span", { class: "sub creator-author" }, row.author),
 			),
 			el("td", { class: "numeric" }, row.drafts > 0 ? `${row.posts} (+${row.drafts})` : String(row.posts)),
-			el("td", { class: "numeric" }, formatBytes(row.storage)),
+			el(
+				"td",
+				{ class: "numeric" },
+				formatBytes(row.storage),
+				el("span", { class: "sub" }, row.storageLimit <= 0 ? "Unlimited allowance" : `of ${formatBytes(row.storageLimit)}`),
+			),
 			el("td", {}, formatDate(row.createdAt)),
 			el("td", {}, formatDate(row.accessedAt)),
+			el(
+				"td",
+				{},
+				row.activeLicenses > 0 ? el("span", { class: "pill license-active" }, "active") : el("span", { class: "pill license-expired" }, "none"),
+				el("span", { class: "sub" }, `${row.activeLicenses} active`),
+				el("span", { class: "sub" }, `${row.licensesUsed} redeemed`),
+			),
+			el("td", {}, row.customDomain ? el("span", { class: "pill license-active" }, "Available") : "No"),
 			el("td", {}, badge(row)),
 			el("td", { class: "row-actions" }, actions(row, reload)),
 		),
@@ -176,7 +211,7 @@ export async function renderAdmin(root: HTMLElement): Promise<void> {
 	const syncAll = el("button", { class: "button ghost", title: "Re-read every account's files from storage" }, "Sync all from storage");
 	syncAll.addEventListener("click", async () => {
 		syncAll.disabled = true;
-		syncAll.textContent = "Working…";
+		syncAll.textContent = "Working...";
 		try {
 			const result = await api.adminSyncAllMedia();
 			toast(`${result.creators} accounts. ${syncSummary(result.imported, result.pruned, result.skipped.length, "Usage recalculated.")}`, "success");
@@ -191,8 +226,13 @@ export async function renderAdmin(root: HTMLElement): Promise<void> {
 	render(
 		root,
 		el("div", { class: "page-head" }, el("div", {}, el("h1", {}, "Moderation"), el("p", {}, `${total} account${total === 1 ? "" : "s"}`)), syncAll),
+		el("div", { class: "table-controls" }, el("div", { class: "search-control" }, searchInput, searchButton)),
 		creators.length === 0
-			? el("div", { class: "empty" }, "No accounts yet.")
+			? el("div", { class: "empty" }, creatorSearch ? "No accounts match this search." : "No accounts yet.")
 			: el("div", { class: "table-wrap" }, el("table", { class: "admin-table" }, el("thead", {}, header(reload)), el("tbody", {}, ...rows))),
+		pagination(total, PAGE_SIZE, creatorOffset, (offset) => {
+			creatorOffset = offset;
+			reload();
+		}),
 	);
 }

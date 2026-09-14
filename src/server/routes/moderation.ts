@@ -1,4 +1,5 @@
 import { Web } from "@rabbit-company/web";
+import { config } from "../config.ts";
 import { ApiError, ErrorCode } from "../lib/errors.ts";
 import { ok } from "../lib/response.ts";
 import { assertValid, isSlugValid, isUsernameValid, isUuidValid } from "../lib/validation.ts";
@@ -56,10 +57,16 @@ export function moderationRoutes(app: Web<AppState>): void {
 		const descending = params.get("dir") !== "asc";
 		const limit = readNumber(params.get("limit"), PAGE_SIZE, PAGE_SIZE);
 		const offset = readNumber(params.get("offset"), 0, Number.MAX_SAFE_INTEGER);
+		const search = (params.get("q") ?? "").trim().slice(0, 320);
 
-		const [creators, total] = await Promise.all([listCreatorOverview(sort, descending, limit, offset), countCreators()]);
+		const [overview, total] = await Promise.all([listCreatorOverview(sort, descending, limit, offset, search), countCreators(search)]);
+		const baseStorage = Math.max(0, config.limits.maxAccountStorage);
+		const creators = overview.map((creator) => ({
+			...creator,
+			storageLimit: config.limits.maxAccountStorage <= 0 ? 0 : Math.min(Number.MAX_SAFE_INTEGER, baseStorage + creator.additionalStorage),
+		}));
 
-		return ok(ctx, { creators, total, sort, dir: descending ? "desc" : "asc", limit, offset });
+		return ok(ctx, { creators, total, sort, dir: descending ? "desc" : "asc", limit, offset, search });
 	});
 
 	/**

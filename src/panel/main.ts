@@ -21,6 +21,7 @@ import { renderSettings } from "./views/settings.ts";
 import { renderAdmin } from "./views/admin.ts";
 import { renderBackups } from "./views/backups.ts";
 import { renderTeam } from "./views/team.ts";
+import { renderLicenses } from "./views/licenses.ts";
 
 const app = document.getElementById("app") as HTMLElement;
 
@@ -51,6 +52,7 @@ const NAV = [
 	{ href: "/team", label: "Team" },
 	{ href: "/settings", label: "Settings" },
 	{ href: "/admin", label: "Moderation" },
+	{ href: "/licenses", label: "Licenses" },
 	{ href: "/backups", label: "Backups" },
 ] as const;
 
@@ -69,7 +71,7 @@ function shell(): HTMLElement {
 		const isOwner = creator?.membership?.isOwner ?? true;
 		if (item.href === "/analytics") return isOwner && instanceConfig().analytics !== "none";
 		if (item.href === "/team") return isOwner;
-		if (item.href === "/admin" || item.href === "/backups") return isOwner && creator?.isAdmin === true;
+		if (item.href === "/admin" || item.href === "/licenses" || item.href === "/backups") return isOwner && creator?.isAdmin === true;
 		return true;
 	});
 
@@ -164,6 +166,7 @@ const routes: Route[] = [
 	{ path: "/team", auth: true, render: guard(renderTeam) },
 	{ path: "/settings", auth: true, render: guard(renderSettings) },
 	{ path: "/admin", auth: true, render: guard(renderAdmin) },
+	{ path: "/licenses", auth: true, render: guard(renderLicenses) },
 	{ path: "/backups", auth: true, render: guard(renderBackups) },
 	{
 		path: "/404",

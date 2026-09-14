@@ -187,6 +187,36 @@ export interface AdminCreator {
 	posts: number;
 	drafts: number;
 	storage: number;
+	storageLimit: number;
+	additionalStorage: number;
+	licensesUsed: number;
+	activeLicenses: number;
+	customDomain: boolean;
+}
+
+export type LicenseStatus = "unused" | "active" | "expired" | "revoked";
+
+export interface License {
+	id: string;
+	keyHint: string;
+	durationDays: number;
+	storageBytes: number;
+	customDomain: boolean;
+	createdBy: string;
+	createdAt: string;
+	redeemedBy: string | null;
+	redeemedAt: string | null;
+	expiresAt: string | null;
+	revokedAt: string | null;
+	status: LicenseStatus;
+}
+
+export interface LicenseEntitlements {
+	baseStorage: number;
+	additionalStorage: number;
+	limit: number;
+	customDomain: boolean;
+	licenses: License[];
 }
 
 export interface Backup {
@@ -320,9 +350,36 @@ export const api = {
 		});
 	},
 
-	adminCreators(sort: string, dir: string) {
-		const query = new URLSearchParams({ sort, dir });
+	adminCreators(sort: string, dir: string, limit = 25, offset = 0, search = "") {
+		const query = new URLSearchParams({ sort, dir, limit: String(limit), offset: String(offset) });
+		if (search.length > 0) query.set("q", search);
 		return request<{ creators: AdminCreator[]; total: number }>(`/api/v1/admin/creators?${query}`);
+	},
+
+	licenses() {
+		return request<LicenseEntitlements>("/api/v1/licenses");
+	},
+
+	redeemLicense(key: string) {
+		return request<{ license: License; entitlements: LicenseEntitlements }>("/api/v1/licenses/redeem", {
+			method: "POST",
+			body: json({ key }),
+		});
+	},
+
+	adminLicenses(limit = 25, offset = 0, search = "") {
+		return request<{ licenses: License[]; total: number }>("/api/v1/admin/licenses/query", {
+			method: "POST",
+			body: json({ limit, offset, search }),
+		});
+	},
+
+	adminCreateLicenses(input: { count: number; durationDays: number; storageBytes: number; customDomain: boolean }) {
+		return request<{ keys: string[]; licenses: License[] }>("/api/v1/admin/licenses", { method: "POST", body: json(input) });
+	},
+
+	adminRevokeLicense(id: string) {
+		return request<void>(`/api/v1/admin/licenses/${encodeURIComponent(id)}`, { method: "DELETE" });
 	},
 
 	adminSuspend(username: string, suspended: boolean) {

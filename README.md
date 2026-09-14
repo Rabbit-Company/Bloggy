@@ -249,6 +249,14 @@ The **Moderation** screen lists every account with its post count, storage used,
 
 Suspension and deletion refuse to act on another administrator until that account is demoted, so one compromised session cannot quietly remove the others. Every action writes an audit line.
 
+## Premium licenses
+
+Administrators can generate up to 500 license keys at a time from the **Licenses** tab. A license defines its lifetime in days, an additional storage allowance in MB or GB, and whether it includes custom-domain access. The full keys are shown once in a one-key-per-line text box with individual and bulk copy controls. Only cryptographic hashes and masked hints are retained afterwards. The paginated history can be searched by an exact full key, its visible suffix, or the creator that redeemed it.
+
+Creators redeem keys in **Settings -> Premium licenses**. A key's lifetime starts when it is redeemed, and every active key contributes independently. For example, an active 30-day key with 5 GB and custom-domain access plus a 90-day key with 10 GB provides 15 GB and custom-domain access for the first 30 days, then 10 GB without custom-domain access for the remaining 60 days. The additional allowance is added to `MAX_ACCOUNT_STORAGE`. An instance configured for unlimited storage remains unlimited.
+
+The paginated **Moderation** table can be searched by username or email and shows each account's used and effective storage allowance, active and total redeemed license counts, and current custom-domain eligibility.
+
 Maintenance endpoints guarded by `ADMIN_TOKEN` as a bearer token remain available for scripts: `GET /api/v1/admin/stats`, `POST /api/v1/admin/cache/purge`, `POST /api/v1/admin/sessions/prune`, and `GET /metrics`.
 
 ## Backups

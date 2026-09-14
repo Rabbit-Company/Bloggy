@@ -25,6 +25,10 @@ function integer(d: DatabaseDialect): string {
 	return d === "postgres" ? "INTEGER" : "INTEGER";
 }
 
+function bigint(d: DatabaseDialect): string {
+	return d === "sqlite" ? "INTEGER" : "BIGINT";
+}
+
 function timestamp(d: DatabaseDialect): string {
 	return varchar(d, 32);
 }
@@ -66,6 +70,11 @@ export function migrations(d: DatabaseDialect): Migration[] {
 	const emailConfirmationIdx = [
 		index("email_confirmation_tokens", "idx_email_confirmation_username", "username"),
 		index("email_confirmation_tokens", "idx_email_confirmation_expires", "expires_at"),
+	];
+	const licenseIdx = [
+		index("licenses", "idx_licenses_redeemed_by", "redeemed_by"),
+		index("licenses", "idx_licenses_expires", "expires_at"),
+		index("licenses", "idx_licenses_created", "created_at"),
 	];
 
 	const body = (columns: string[], indexes: { inline?: string }[]): string =>
@@ -294,6 +303,32 @@ export function migrations(d: DatabaseDialect): Migration[] {
 	post_template ${text(d)} NOT NULL,
 	updated_at ${timestamp(d)} NOT NULL
 )`,
+			],
+		},
+
+		{
+			name: "0009_licenses",
+			statements: [
+				`CREATE TABLE IF NOT EXISTS licenses (
+	${body(
+		[
+			`id ${varchar(d, 36)} NOT NULL PRIMARY KEY`,
+			`key_hash ${varchar(d, 128)} NOT NULL UNIQUE`,
+			`key_hint ${varchar(d, 20)} NOT NULL`,
+			`duration_days ${integer(d)} NOT NULL`,
+			`storage_bytes ${bigint(d)} NOT NULL`,
+			`custom_domain ${integer(d)} NOT NULL`,
+			`created_by ${varchar(d, 30)} NOT NULL`,
+			`created_at ${timestamp(d)} NOT NULL`,
+			`redeemed_by ${varchar(d, 30)}`,
+			`redeemed_at ${timestamp(d)}`,
+			`expires_at ${timestamp(d)}`,
+			`revoked_at ${timestamp(d)}`,
+		],
+		licenseIdx,
+	)}
+)`,
+				...trailing(licenseIdx),
 			],
 		},
 	];

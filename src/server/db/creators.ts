@@ -243,8 +243,18 @@ export async function listCreatorCategories(): Promise<string[]> {
 	return rows.map((row) => row.category);
 }
 
-export async function countCreators(): Promise<number> {
-	const rows = (await sql`SELECT COUNT(*) AS total FROM creators`) as { total: number }[];
+function likePattern(value: string): string {
+	return `%${value.replace(/[!%_]/g, (char) => `!${char}`).toLowerCase()}%`;
+}
+
+function creatorSearchClause(search: string) {
+	if (search.trim().length === 0) return sql``;
+	const pattern = likePattern(search.trim());
+	return sql`WHERE (LOWER(c.username) LIKE ${pattern} ESCAPE '!' OR LOWER(c.email) LIKE ${pattern} ESCAPE '!')`;
+}
+
+export async function countCreators(search = ""): Promise<number> {
+	const rows = (await sql`SELECT COUNT(*) AS total FROM creators c ${creatorSearchClause(search)}`) as { total: number }[];
 	return Number(rows[0]?.total ?? 0);
 }
 
@@ -279,6 +289,10 @@ export interface CreatorOverview {
 	posts: number;
 	drafts: number;
 	storage: number;
+	licensesUsed: number;
+	activeLicenses: number;
+	additionalStorage: number;
+	customDomain: boolean;
 }
 
 export type OverviewSort = "username" | "posts" | "storage" | "created" | "accessed";
@@ -302,15 +316,21 @@ const SORT_COLUMNS: Record<OverviewSort, string> = {
  * The sort column is looked up in {@link SORT_COLUMNS} rather than
  * interpolated, since an identifier cannot be a bind parameter.
  */
-export async function listCreatorOverview(sort: OverviewSort = "storage", descending = true, limit = 100, offset = 0): Promise<CreatorOverview[]> {
+export async function listCreatorOverview(sort: OverviewSort = "storage", descending = true, limit = 100, offset = 0, search = ""): Promise<CreatorOverview[]> {
 	const column = SORT_COLUMNS[sort] ?? SORT_COLUMNS.storage;
 	const direction = descending ? "DESC" : "ASC";
+	const timestamp = now();
 
 	const rows = (await sql`SELECT c.username, c.author, c.title, c.email, c.created_at, c.accessed_at, c.is_admin, c.suspended_at,
 			(SELECT COUNT(*) FROM posts p WHERE p.username = c.username AND p.status = 'published') AS posts,
 			(SELECT COUNT(*) FROM posts p WHERE p.username = c.username AND p.status <> 'published') AS drafts,
-			(SELECT COALESCE(SUM(m.size), 0) FROM media m WHERE m.username = c.username) AS storage
+			(SELECT COALESCE(SUM(m.size), 0) FROM media m WHERE m.username = c.username) AS storage,
+			(SELECT COUNT(*) FROM licenses l WHERE l.redeemed_by = c.username) AS licenses_used,
+			(SELECT COUNT(*) FROM licenses l WHERE l.redeemed_by = c.username AND l.revoked_at IS NULL AND l.expires_at > ${timestamp}) AS active_licenses,
+			(SELECT COALESCE(SUM(l.storage_bytes), 0) FROM licenses l WHERE l.redeemed_by = c.username AND l.revoked_at IS NULL AND l.expires_at > ${timestamp}) AS additional_storage,
+			(SELECT COUNT(*) FROM licenses l WHERE l.redeemed_by = c.username AND l.revoked_at IS NULL AND l.expires_at > ${timestamp} AND l.custom_domain = 1) AS custom_domain
 		FROM creators c
+		${creatorSearchClause(search)}
 		ORDER BY ${sql.unsafe(`${column} ${direction}`)}, c.username ASC
 		LIMIT ${limit} OFFSET ${offset}`) as Record<string, unknown>[];
 
@@ -326,5 +346,9 @@ export async function listCreatorOverview(sort: OverviewSort = "storage", descen
 		posts: Number(row.posts ?? 0),
 		drafts: Number(row.drafts ?? 0),
 		storage: Number(row.storage ?? 0),
+		licensesUsed: Number(row.licenses_used ?? 0),
+		activeLicenses: Number(row.active_licenses ?? 0),
+		additionalStorage: Number(row.additional_storage ?? 0),
+		customDomain: Number(row.custom_domain ?? 0) > 0,
 	}));
 }

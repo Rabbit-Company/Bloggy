@@ -3,6 +3,7 @@ import { sql } from "../src/server/db/index.ts";
 import { migrate } from "../src/server/db/migrate.ts";
 import {
 	countAdmins,
+	countCreators,
 	findCreator,
 	insertCreator,
 	isAdmin,
@@ -14,6 +15,7 @@ import {
 	setSuspended,
 	toPublicCreator,
 } from "../src/server/db/creators.ts";
+import { createLicenses, redeemLicense } from "../src/server/db/licenses.ts";
 import { insertMedia } from "../src/server/db/media.ts";
 import { insertPost, listAllPostRefs, type PostInput } from "../src/server/db/posts.ts";
 import { createApp } from "../src/server/index.ts";
@@ -53,6 +55,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+	await sql`DELETE FROM licenses`;
 	await sql`DELETE FROM media`;
 	await sql`DELETE FROM posts`;
 	await sql`DELETE FROM creators`;
@@ -170,6 +173,25 @@ describe("the moderation table", () => {
 		const rows = await listCreatorOverview("username", false);
 		expect(rows.map((r) => r.username)).toContain("light");
 		expect(rows.find((r) => r.username === "light")?.suspendedAt).not.toBeNull();
+	});
+
+	test("searches username and email as literal case-insensitive text", async () => {
+		expect((await listCreatorOverview("username", false, 100, 0, "HEAVY")).map((row) => row.username)).toEqual(["heavy"]);
+		expect((await listCreatorOverview("username", false, 100, 0, "light@example")).map((row) => row.username)).toEqual(["light"]);
+		expect(await countCreators("LIGHT@EXAMPLE")).toBe(1);
+		expect(await countCreators("%")).toBe(0);
+	});
+
+	test("includes active premium benefits and redeemed-license totals", async () => {
+		const generated = await createLicenses({ count: 1, durationDays: 30, storageBytes: 5 * 1024 ** 3, customDomain: true, createdBy: "heavy" });
+		await redeemLicense(generated.keys[0]!, "light");
+		const light = (await listCreatorOverview("username", false, 100, 0, "light"))[0]!;
+		expect(light).toMatchObject({
+			licensesUsed: 1,
+			activeLicenses: 1,
+			additionalStorage: 5 * 1024 ** 3,
+			customDomain: true,
+		});
 	});
 });
 

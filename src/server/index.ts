@@ -21,6 +21,7 @@ import { moderationRoutes } from "./routes/moderation.ts";
 import { panelRoutes } from "./routes/panel.ts";
 import { analyticsRoutes } from "./routes/analytics.ts";
 import { teamRoutes } from "./routes/team.ts";
+import { licenseRoutes } from "./routes/licenses.ts";
 import { pruneExpiredTeamInvites } from "./db/team.ts";
 import { pruneExpiredPasswordResetTokens } from "./db/password-resets.ts";
 import { pruneExpiredEmailConfirmationTokens } from "./db/email-confirmations.ts";
@@ -118,6 +119,7 @@ export function createApp(): Web<AppState> {
 	mediaRoutes(app);
 	analyticsRoutes(app);
 	teamRoutes(app);
+	licenseRoutes(app);
 	adminRoutes(app);
 	moderationRoutes(app);
 

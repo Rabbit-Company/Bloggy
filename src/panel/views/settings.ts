@@ -1,11 +1,11 @@
 import { QRCode, ErrorCorrectionLevel } from "@rabbit-company/qrcode";
 import PasswordEntropy from "@rabbit-company/password-entropy";
-import { api, type Creator, type CreatorCustomization, type Session } from "../api.ts";
+import { api, type Creator, type CreatorCustomization, type LicenseEntitlements, type Session } from "../api.ts";
 import { CATEGORIES, DEFAULT_THEME_COLORS, LANGUAGES, SOCIAL_PLATFORMS, THEMES, instanceConfig } from "../constants.ts";
 import { HOME_STARTER_TEMPLATE, HOME_TEMPLATE_COMPONENTS, POST_STARTER_TEMPLATE, POST_TEMPLATE_COMPONENTS } from "../../shared/customization.ts";
 import type { ThemeColors } from "../../shared/constants.ts";
 import { clearSession, setCreator } from "../session.ts";
-import { compressImage, confirm, el, field, formatDateTime, modal, render, setHtml, toast } from "../ui.ts";
+import { compressImage, confirm, el, field, formatBytes, formatDateTime, modal, render, setHtml, toast } from "../ui.ts";
 import { navigate } from "../router.ts";
 
 function select(name: string, options: readonly (string | { value: string; label: string })[], selected?: string): HTMLSelectElement {
@@ -43,25 +43,121 @@ function backupCodes(codes: string[]): HTMLElement {
 	);
 }
 
+function premiumLicenses(entitlements: LicenseEntitlements, reload: () => void): HTMLElement {
+	const key = el("input", {
+		id: "license-key",
+		placeholder: "BLOGGY-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX",
+		autocomplete: "off",
+		spellcheck: "false",
+	});
+	const redeem = el("button", { class: "button primary" }, "Redeem license");
+	redeem.addEventListener("click", async () => {
+		const value = key.value.trim();
+		if (value.length === 0) {
+			toast("Enter a license key first.", "error");
+			return;
+		}
+		redeem.disabled = true;
+		redeem.textContent = "Redeeming...";
+		try {
+			await api.redeemLicense(value);
+			toast("License redeemed. Your premium benefits are active.", "success");
+			reload();
+		} catch (err) {
+			toast(err instanceof Error ? err.message : "Could not redeem the license.", "error");
+			redeem.disabled = false;
+			redeem.textContent = "Redeem license";
+		}
+	});
+	key.addEventListener("keydown", (event) => {
+		if ((event as KeyboardEvent).key === "Enter") {
+			event.preventDefault();
+			redeem.click();
+		}
+	});
+
+	const activeCustomDomains = entitlements.licenses.filter((license) => license.status === "active" && license.customDomain && license.expiresAt !== null);
+	const customDomainUntil = activeCustomDomains
+		.map((license) => license.expiresAt as string)
+		.sort()
+		.at(-1);
+	const allowance = entitlements.limit <= 0 ? "Unlimited" : formatBytes(entitlements.limit);
+
+	return el(
+		"div",
+		{ class: "card" },
+		el("h2", {}, "Premium licenses"),
+		el("p", { class: "hint" }, "License benefits stack and each one remains active until its own expiry date."),
+		el(
+			"div",
+			{ class: "stats license-stats" },
+			el("div", { class: "stat" }, el("div", { class: "value" }, allowance), el("div", { class: "label" }, "Total storage allowance")),
+			el(
+				"div",
+				{ class: "stat" },
+				el("div", { class: "value" }, entitlements.additionalStorage > 0 ? `+${formatBytes(entitlements.additionalStorage)}` : "None"),
+				el("div", { class: "label" }, "License storage"),
+			),
+			el(
+				"div",
+				{ class: "stat" },
+				el("div", { class: "value" }, entitlements.customDomain ? "Included" : "Not included"),
+				el("div", { class: "label" }, customDomainUntil ? `Custom domain until ${formatDateTime(customDomainUntil)}` : "Custom domain"),
+			),
+		),
+		el("div", { class: "license-redeem" }, key, redeem),
+		entitlements.licenses.length > 0 &&
+			el(
+				"div",
+				{ class: "table-wrap license-account-table" },
+				el(
+					"table",
+					{ class: "data" },
+					el("thead", {}, el("tr", {}, el("th", {}, "License"), el("th", {}, "Benefits"), el("th", {}, "Status"), el("th", {}, "Expires"))),
+					el(
+						"tbody",
+						{},
+						...entitlements.licenses.map((license) => {
+							const benefits = [license.storageBytes > 0 ? `+${formatBytes(license.storageBytes)}` : "", license.customDomain ? "Custom domain" : ""]
+								.filter(Boolean)
+								.join(" · ");
+							return el(
+								"tr",
+								{},
+								el("td", {}, el("code", {}, license.keyHint)),
+								el("td", {}, benefits),
+								el("td", {}, el("span", { class: `pill license-${license.status}` }, license.status)),
+								el("td", {}, license.expiresAt ? formatDateTime(license.expiresAt) : "Not available"),
+							);
+						}),
+					),
+				),
+			),
+	);
+}
+
 export async function renderSettings(root: HTMLElement): Promise<void> {
-	render(root, el("div", { class: "loading" }, el("span", { class: "spinner" }), " Loading settings…"));
+	render(root, el("div", { class: "loading" }, el("span", { class: "spinner" }), " Loading settings..."));
 
 	let creator: Creator;
 	let backupCodesRemaining = 0;
 	let sessions: Session[] = [];
 	let customization: CreatorCustomization = { customCss: "", homeTemplate: "", postTemplate: "", updatedAt: null };
+	let entitlements: LicenseEntitlements = { baseStorage: 0, additionalStorage: 0, limit: 0, customDomain: false, licenses: [] };
 
 	try {
 		const me = await api.me();
 		creator = me.creator;
 		backupCodesRemaining = me.backupCodesRemaining;
 		setCreator(creator);
-		const [sessionResult, customizationResult] = await Promise.all([
+		const [sessionResult, customizationResult, licenseResult] = await Promise.all([
 			api.sessions(),
 			creator.membership?.isOwner === false ? Promise.resolve(null) : api.customization(),
+			creator.membership?.isOwner === false ? Promise.resolve(null) : api.licenses(),
 		]);
 		sessions = sessionResult.sessions;
 		if (customizationResult) customization = customizationResult;
+		if (licenseResult) entitlements = licenseResult;
 	} catch (err) {
 		render(root, el("div", { class: "empty" }, err instanceof Error ? err.message : "Could not load your settings."));
 		return;
@@ -434,6 +530,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 				colorPicker,
 				el("div", { class: "actions" }, saveSettings),
 			),
+
+		isOwner && premiumLicenses(entitlements, reload),
 
 		isOwner &&
 			el(
