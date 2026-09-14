@@ -277,13 +277,13 @@ CLOUDFLARE_API_TOKEN=...
 CLOUDFLARE_ZONE_ID=...
 BURROWGATE_URL=https://gateway.example.com
 BURROWGATE_ADMIN_TOKEN=...
-BURROWGATE_CUSTOM_DOMAIN_ORIGIN=http://127.0.0.1:3000
+BURROWGATE_SITE_ID=...
 BURROWGATE_ACME_EMAIL=admin@example.com
 ```
 
 Create a custom Cloudflare API token with the zone-level **SSL and Certificates Edit** permission. Cloudflare may display this permission as **SSL and Certificates Write**. Scope the token to **Include**, **Specific zone**, then select the SaaS zone such as `bloggy.io`. Bloggy does not need Cloudflare DNS, Workers, Zone Edit, or account-level permissions.
 
-The BurrowGate token needs permission to create and remove sites and manage their certificates. Do not reuse the read-only monitoring token.
+The BurrowGate token needs permission to list, create, update and remove sites and manage their certificates. Do not reuse the read-only monitoring token. Bloggy reads the primary origin from the main site selected by `BURROWGATE_SITE_ID` and reuses it for every custom-domain site. This keeps traffic on the private origin such as `http://localhost:3000` instead of looping through the public `https://bloggy.io` site. `BURROWGATE_CUSTOM_DOMAIN_ORIGIN` is an optional fallback for installations where the main site cannot be selected. It must be a private address that BurrowGate can reach and must never be Bloggy's public URL.
 
 For the hosted Cloudflare setup:
 
@@ -294,7 +294,7 @@ For the hosted Cloudflare setup:
 
 Cloudflare preserves the visitor hostname when connecting to the fallback origin. BurrowGate uses that hostname for TLS and site routing, and Bloggy maps it to the licensed creator. Cloudflare still applies its proxy, WAF, cache and rate controls without a Worker invocation. Use Full (strict) mode after BurrowGate has issued the hostname certificate.
 
-Self-hosters can select `burrowgate` with `BURROWGATE_URL`, `BURROWGATE_ADMIN_TOKEN`, `BURROWGATE_CUSTOM_DOMAIN_ORIGIN`, and `BURROWGATE_ACME_EMAIL`. In that mode the DNS target resolves directly to their gateway, and Bloggy creates one hostname-based BurrowGate site with a Let's Encrypt certificate. Selecting `manual` performs Bloggy ownership and CNAME checks while leaving proxy and certificate configuration to the operator.
+Self-hosters can select `burrowgate` with `BURROWGATE_URL`, `BURROWGATE_ADMIN_TOKEN`, `BURROWGATE_SITE_ID`, and `BURROWGATE_ACME_EMAIL`. In that mode the DNS target resolves directly to their gateway, and Bloggy creates one hostname-based BurrowGate site with a Let's Encrypt certificate. `BURROWGATE_CUSTOM_DOMAIN_ORIGIN` can be used as a private-origin fallback when `BURROWGATE_SITE_ID` is unavailable. Selecting `manual` performs Bloggy ownership and CNAME checks while leaving proxy and certificate configuration to the operator.
 
 The first release expects a subdomain CNAME. Apex-domain support depends on DNS flattening or Cloudflare Apex Proxying and is intentionally not inferred from an A record.
 

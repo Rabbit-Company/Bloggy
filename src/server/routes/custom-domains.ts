@@ -20,6 +20,7 @@ import {
 	issueBurrowGateCertificate,
 	manualVerificationRecord,
 	readCloudflareHostname,
+	syncBurrowGateSite,
 } from "../lib/custom-domain-provider.ts";
 import { isReservedCustomHostname, normalizeCustomHostname } from "../lib/custom-domain-host.ts";
 import { uuid } from "../lib/crypto.ts";
@@ -92,6 +93,8 @@ async function refreshDomain(domain: CustomDomain): Promise<CustomDomain> {
 				await deleteBurrowGateSite(siteId).catch(() => undefined);
 				throw error;
 			}
+		} else {
+			await syncBurrowGateSite(siteId);
 		}
 
 		if (!(await burrowGateCertificateReady(siteId))) await issueBurrowGateCertificate(siteId);
