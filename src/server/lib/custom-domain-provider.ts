@@ -160,8 +160,6 @@ function burrowGateHeaders(): HeadersInit {
 	};
 }
 
-const BURROWGATE_CUSTOM_SITE_NAME = "Bloggy custom domain";
-
 function validOriginUrl(value: unknown): string | null {
 	if (typeof value !== "string" || value.length === 0) return null;
 	try {
@@ -240,7 +238,7 @@ export async function createBurrowGateSite(hostname: string, behindCloudflare = 
 			method: "POST",
 			headers: burrowGateHeaders(),
 			body: JSON.stringify({
-				name: BURROWGATE_CUSTOM_SITE_NAME,
+				name: hostname,
 				publicHost: hostname,
 				originUrl,
 				enabled: true,
@@ -253,23 +251,6 @@ export async function createBurrowGateSite(hostname: string, behindCloudflare = 
 	const id = body?.site?.id;
 	if (typeof id !== "string" || id.length === 0) throw new Error("BurrowGate returned an incomplete site response");
 	return id;
-}
-
-export async function syncBurrowGateSite(siteId: string): Promise<void> {
-	const sites = await readBurrowGateSites();
-	const site = sites.find((item) => item.id === siteId);
-	if (!site) throw new Error("BurrowGate could not find the custom-domain site");
-	const { originUrl } = await burrowGateCustomDomainOrigin(sites);
-	if (site.name === BURROWGATE_CUSTOM_SITE_NAME && validOriginUrl(site.originUrl) === originUrl) return;
-	await providerFetch(
-		burrowGateUrl(`/_burrowgate/api/admin/sites/${encodeURIComponent(siteId)}`),
-		{
-			method: "PUT",
-			headers: burrowGateHeaders(),
-			body: JSON.stringify({ name: BURROWGATE_CUSTOM_SITE_NAME, originUrl }),
-		},
-		"BurrowGate could not update the custom-domain site",
-	);
 }
 
 export async function burrowGateCertificateReady(siteId: string): Promise<boolean> {

@@ -9,7 +9,7 @@ import { createLicenses, redeemLicense, revokeLicense } from "../src/server/db/l
 import { findCustomDomainByUsername, insertCustomDomain, updateCustomDomain } from "../src/server/db/custom-domains.ts";
 import { now, sql } from "../src/server/db/index.ts";
 import { normalizeCustomHostname } from "../src/server/lib/custom-domain-host.ts";
-import { burrowGateCertificateReady, customDomainsAvailable, syncBurrowGateSite } from "../src/server/lib/custom-domain-provider.ts";
+import { burrowGateCertificateReady, customDomainsAvailable } from "../src/server/lib/custom-domain-provider.ts";
 
 const USER = "domain-owner";
 const HOSTNAME = "blog.rabbit-company.com";
@@ -123,50 +123,6 @@ describe("custom domain hostnames", () => {
 		}
 	});
 
-	test("repairs the origin and name of an existing BurrowGate custom-domain site", async () => {
-		const originalFetch = globalThis.fetch;
-		const originalUrl = config.burrowgate.url;
-		const originalSiteId = config.burrowgate.siteId;
-		const originalToken = config.customDomains.burrowgate.adminToken;
-		let updated = false;
-		(config.burrowgate as { url: string; siteId: string }).url = "https://gateway.example.test";
-		(config.burrowgate as { url: string; siteId: string }).siteId = "main-site-id";
-		(config.customDomains.burrowgate as { adminToken: string }).adminToken = "test-token";
-		globalThis.fetch = (async (input, init) => {
-			const url = String(input);
-			const method = init?.method ?? "GET";
-			if (url.endsWith("/_burrowgate/api/admin/sites") && method === "GET") {
-				return Response.json({
-					items: [
-						{ id: "main-site-id", name: "Bloggy", publicHost: "bloggy.io", originUrl: "http://localhost:3000" },
-						{
-							id: "custom-site-id",
-							name: `Bloggy custom domain ${HOSTNAME}`,
-							publicHost: HOSTNAME,
-							originUrl: "https://bloggy.io",
-						},
-					],
-				});
-			}
-			if (url.endsWith("/_burrowgate/api/admin/sites/custom-site-id") && method === "PUT") {
-				expect(JSON.parse(String(init?.body))).toEqual({ name: "Bloggy custom domain", originUrl: "http://localhost:3000" });
-				updated = true;
-				return Response.json({ site: { id: "custom-site-id" } });
-			}
-			throw new Error(`Unexpected provider request: ${method} ${url}`);
-		}) as typeof fetch;
-
-		try {
-			await syncBurrowGateSite("custom-site-id");
-			expect(updated).toBe(true);
-		} finally {
-			globalThis.fetch = originalFetch;
-			(config.burrowgate as { url: string; siteId: string }).url = originalUrl;
-			(config.burrowgate as { url: string; siteId: string }).siteId = originalSiteId;
-			(config.customDomains.burrowgate as { adminToken: string }).adminToken = originalToken;
-		}
-	});
-
 	test("requires both Cloudflare and BurrowGate credentials in hosted mode", () => {
 		const originalUrl = config.burrowgate.url;
 		const originalToken = config.customDomains.cloudflare.apiToken;
@@ -202,6 +158,7 @@ describe("custom domain hostnames", () => {
 		const originalAdminToken = config.customDomains.burrowgate.adminToken;
 		const originalOriginUrl = config.customDomains.burrowgate.originUrl;
 		let tlsReads = 0;
+		let siteListReads = 0;
 
 		try {
 			customDomainConfig("cloudflare", "customers.bloggy.test");
@@ -225,6 +182,7 @@ describe("custom domain hostnames", () => {
 					return Response.json({ success: true, result: { id: "cf-hostname-1", status: "active", ssl: { status: "active" } } });
 				}
 				if (url.endsWith("/_burrowgate/api/admin/sites") && method === "GET") {
+					siteListReads++;
 					return Response.json({
 						items: [{ id: "main-site-id", name: "Bloggy", publicHost: "bloggy.io", originUrl: "http://localhost:3000" }],
 					});
@@ -232,7 +190,7 @@ describe("custom domain hostnames", () => {
 				if (url.endsWith("/_burrowgate/api/admin/sites") && method === "POST") {
 					const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
 					expect(body).toMatchObject({
-						name: "Bloggy custom domain",
+						name: HOSTNAME,
 						publicHost: HOSTNAME,
 						originUrl: "http://localhost:3000",
 						ipExtractionPreset: "cloudflare",
@@ -270,7 +228,13 @@ describe("custom domain hostnames", () => {
 				gatewaySiteId: "burrowgate-site-1",
 				status: "active",
 			});
-			expect(tlsReads).toBe(2);
+
+			const checkedAgain = await app.handle(
+				new Request("http://localhost:3000/api/v1/custom-domain/refresh", { method: "POST", headers: { Authorization: `Bearer ${session.token}` } }),
+			);
+			expect(checkedAgain.status).toBe(200);
+			expect(siteListReads).toBe(1);
+			expect(tlsReads).toBe(3);
 		} finally {
 			globalThis.fetch = originalFetch;
 			(config.burrowgate as { url: string; siteId: string }).url = originalUrl;
