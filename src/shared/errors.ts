@@ -82,4 +82,12 @@ export enum ErrorCode {
 	INVALID_CUSTOMIZATION = 1125,
 	/** A license key is malformed, unknown, revoked or already redeemed. */
 	LICENSE_INVALID = 1126,
+	/** The requested custom hostname is malformed or reserved. */
+	INVALID_CUSTOM_DOMAIN = 1127,
+	/** Custom domains are disabled, misconfigured, or not included in the active licenses. */
+	CUSTOM_DOMAIN_UNAVAILABLE = 1128,
+	/** The hostname is already attached to another Bloggy account. */
+	CUSTOM_DOMAIN_CONFLICT = 1129,
+	/** The external domain provider or gateway could not complete the operation. */
+	CUSTOM_DOMAIN_PROVISIONING_FAILED = 1130,
 }

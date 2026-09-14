@@ -72,6 +72,10 @@ const messages: Record<ErrorCode, string> = {
 	[ErrorCode.EMAIL_CONFIRMATION_UNAVAILABLE]: "Email confirmation is not configured on this instance.",
 	[ErrorCode.INVALID_CUSTOMIZATION]: "The blog customization is invalid.",
 	[ErrorCode.LICENSE_INVALID]: "This license key is invalid, revoked or has already been redeemed.",
+	[ErrorCode.INVALID_CUSTOM_DOMAIN]: "Enter a valid public hostname without a scheme, path or port.",
+	[ErrorCode.CUSTOM_DOMAIN_UNAVAILABLE]: "Custom domains are not available for this account or installation.",
+	[ErrorCode.CUSTOM_DOMAIN_CONFLICT]: "That hostname is already connected to another account.",
+	[ErrorCode.CUSTOM_DOMAIN_PROVISIONING_FAILED]: "The custom domain provider could not complete the request. Please try again.",
 	[ErrorCode.STORAGE_QUOTA_EXCEEDED]:
 		"You have used all of your storage allowance. Delete some images, or contact the administrator to have your limit raised.",
 };
@@ -106,6 +110,9 @@ const statuses: Partial<Record<ErrorCode, number>> = {
 	[ErrorCode.EMAIL_DELIVERY_FAILED]: 502,
 	[ErrorCode.EMAIL_CONFIRMATION_UNAVAILABLE]: 409,
 	[ErrorCode.LICENSE_INVALID]: 409,
+	[ErrorCode.CUSTOM_DOMAIN_UNAVAILABLE]: 403,
+	[ErrorCode.CUSTOM_DOMAIN_CONFLICT]: 409,
+	[ErrorCode.CUSTOM_DOMAIN_PROVISIONING_FAILED]: 502,
 	[ErrorCode.RATE_LIMITED]: 429,
 	[ErrorCode.DATABASE_ERROR]: 500,
 	[ErrorCode.WRITE_FAILED]: 500,

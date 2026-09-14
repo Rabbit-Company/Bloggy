@@ -34,6 +34,11 @@ export interface AnalyticsResult {
 
 export class BurrowGateError extends Error {}
 
+export interface AnalyticsScope {
+	siteId: string;
+	basePath: string;
+}
+
 export function analyticsEnabled(): boolean {
 	const { url, token, siteId } = config.burrowgate;
 	return url.length > 0 && token.length > 0 && siteId.length > 0;
@@ -45,20 +50,22 @@ export async function fetchAnalytics(
 	username: string,
 	slug?: string,
 	metric: AnalyticsMetric = "requests",
+	scope?: AnalyticsScope,
 ): Promise<AnalyticsResult> {
 	if (!analyticsEnabled()) throw new BurrowGateError("Analytics is not configured on this instance.");
 
-	const base = `/creator/${username}`;
-	const exactPath = slug === undefined ? undefined : slug === "" ? base : `${base}/${slug}`;
+	const base = scope?.basePath ?? `/creator/${username}`;
+	const home = base || "/";
+	const exactPath = slug === undefined ? undefined : slug === "" ? home : `${base}/${slug}`;
 
 	const url = new URL("/_burrowgate/api/v1/monitoring", config.burrowgate.url);
 	url.searchParams.set("view", view);
 	url.searchParams.set("hours", String(hours));
-	url.searchParams.set("siteId", config.burrowgate.siteId);
+	url.searchParams.set("siteId", scope?.siteId ?? config.burrowgate.siteId);
 	url.searchParams.set("successfulOnly", "true");
 	url.searchParams.set("metric", metric);
-	if (exactPath === undefined) url.searchParams.set("pathPrefix", base);
-	else url.searchParams.set("path", exactPath);
+	if (exactPath !== undefined) url.searchParams.set("path", exactPath);
+	else if (base.length > 0) url.searchParams.set("pathPrefix", base);
 
 	let response: Response;
 	try {
@@ -94,11 +101,16 @@ export async function fetchAnalytics(
 	// and not confirmed.
 	const appliedPath = result.path ?? null;
 	const appliedPrefix = result.pathPrefix ?? null;
-	const scopeApplied = exactPath === undefined ? appliedPrefix === base && appliedPath === null : appliedPath === exactPath && appliedPrefix === null;
+	const scopeApplied =
+		exactPath === undefined
+			? base.length === 0
+				? appliedPrefix === null && appliedPath === null
+				: appliedPrefix === base && appliedPath === null
+			: appliedPath === exactPath && appliedPrefix === null;
 
 	if (!scopeApplied) {
 		logger.error("BurrowGate did not apply the requested analytics scope", {
-			requested: exactPath ?? base,
+			requested: exactPath ?? (base || "the complete custom-domain site"),
 			exact: exactPath !== undefined,
 			appliedPrefix,
 			appliedPath,

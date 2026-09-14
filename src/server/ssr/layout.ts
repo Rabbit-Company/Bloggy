@@ -30,6 +30,7 @@ export interface PageMeta {
 	theme: string;
 	noindex?: boolean;
 	customCss?: string;
+	whiteLabel?: boolean;
 }
 
 function twitterHandle(url: string): string {
@@ -43,7 +44,7 @@ function twitterHandle(url: string): string {
  * the original template-replacement approach had.
  */
 export function renderPage(meta: PageMeta, body: string): string {
-	const site = twitterHandle(config.site.twitter);
+	const site = meta.whiteLabel === true ? "" : twitterHandle(config.site.twitter);
 	const creator = meta.twitterCreator === undefined ? site : twitterHandle(meta.twitterCreator);
 
 	const feeds =
@@ -91,13 +92,13 @@ ${article}
 <link rel="icon" href="${escapeHtml(meta.icon)}">
 ${feeds}
 <link rel="stylesheet" href="${BLOG_CSS_ASSET.path}">
-${meta.customCss ? `<style data-bloggy-custom>${styleContent(meta.customCss)}</style>` : ""}
+${meta.customCss ? `<style data-creator-custom>${styleContent(meta.customCss)}</style>` : ""}
 ${meta.jsonLd === undefined ? "" : `<script type="application/ld+json">${escapeJson(meta.jsonLd)}</script>`}
 ${config.site.analytics}
 </head>
 <body>
 ${body}
-<footer><p>Powered by <a href="${escapeHtml(config.server.domain)}">${escapeHtml(config.site.title)}</a></p></footer>
+${meta.whiteLabel === true ? "" : `<footer><p>Powered by <a href="${escapeHtml(config.server.domain)}">${escapeHtml(config.site.title)}</a></p></footer>`}
 </body>
 </html>`;
 }

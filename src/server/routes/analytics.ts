@@ -14,17 +14,19 @@ import {
 	type AnalyticsView,
 } from "../lib/burrowgate.ts";
 import { listPostsByCreator } from "../db/posts.ts";
+import { findActiveCustomDomainByUsername } from "../db/custom-domains.ts";
 import type { AppState } from "../types.ts";
 import { accountRateLimit } from "../middleware/account-rate-limit.ts";
 
-async function describePaths(username: string, rows: { label: string; value: number; detail?: string }[]) {
+async function describePaths(username: string, rows: { label: string; value: number; detail?: string }[], base = `/creator/${username}`) {
 	const titles = new Map((await listPostsByCreator(username)).map((post) => [post.slug, post.title]));
-	const base = `/creator/${username}`;
+	const home = base || "/";
 
 	return rows.map((row) => {
-		if (row.label === base || row.label === `${base}/`) return { ...row, label: "Blog home", detail: base };
+		if (row.label === home || (base.length > 0 && row.label === `${base}/`)) return { ...row, label: "Blog home", detail: home };
 
-		const rest = row.label.startsWith(`${base}/`) ? row.label.slice(base.length + 1) : null;
+		const rest =
+			base.length === 0 ? (row.label.startsWith("/") ? row.label.slice(1) : null) : row.label.startsWith(`${base}/`) ? row.label.slice(base.length + 1) : null;
 		if (rest === null) return row;
 
 		if (rest.startsWith("feed.")) return { ...row, label: `${rest.slice(5).toUpperCase()} feed`, detail: row.label };
@@ -54,6 +56,11 @@ export function analyticsRoutes(app: Web<AppState>): void {
 		}
 
 		const username = ctx.get("creator").username;
+		const customDomain = await findActiveCustomDomainByUsername(username);
+		if (customDomain && !customDomain.gatewaySiteId) {
+			throw new ApiError(ErrorCode.INTERNAL_ERROR, "Analytics is unavailable because this custom domain has no BurrowGate site identifier.");
+		}
+		const analyticsScope = customDomain?.gatewaySiteId ? { siteId: customDomain.gatewaySiteId, basePath: "" } : undefined;
 
 		const page = query.get("page");
 		let slug: string | undefined;
@@ -64,8 +71,8 @@ export function analyticsRoutes(app: Web<AppState>): void {
 		}
 
 		try {
-			const data = await fetchAnalytics(view as AnalyticsView, hours as AnalyticsHours, username, slug, metric as AnalyticsMetric);
-			if (view === "paths") data.rows = await describePaths(username, data.rows);
+			const data = await fetchAnalytics(view as AnalyticsView, hours as AnalyticsHours, username, slug, metric as AnalyticsMetric, analyticsScope);
+			if (view === "paths") data.rows = await describePaths(username, data.rows, analyticsScope?.basePath);
 			return ok(ctx, data);
 		} catch (err) {
 			if (err instanceof BurrowGateError) throw new ApiError(ErrorCode.INTERNAL_ERROR, err.message);

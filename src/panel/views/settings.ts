@@ -1,6 +1,6 @@
 import { QRCode, ErrorCorrectionLevel } from "@rabbit-company/qrcode";
 import PasswordEntropy from "@rabbit-company/password-entropy";
-import { api, type Creator, type CreatorCustomization, type LicenseEntitlements, type Session } from "../api.ts";
+import { api, type Creator, type CreatorCustomization, type CustomDomainSettings, type LicenseEntitlements, type Session } from "../api.ts";
 import { CATEGORIES, DEFAULT_THEME_COLORS, LANGUAGES, SOCIAL_PLATFORMS, THEMES, instanceConfig } from "../constants.ts";
 import { HOME_STARTER_TEMPLATE, HOME_TEMPLATE_COMPONENTS, POST_STARTER_TEMPLATE, POST_TEMPLATE_COMPONENTS } from "../../shared/customization.ts";
 import type { ThemeColors } from "../../shared/constants.ts";
@@ -136,6 +136,144 @@ function premiumLicenses(entitlements: LicenseEntitlements, reload: () => void):
 	);
 }
 
+function copyValue(value: string): HTMLButtonElement {
+	const button = el("button", { class: "button ghost small", type: "button" }, "Copy");
+	button.addEventListener("click", async () => {
+		try {
+			await navigator.clipboard.writeText(value);
+			toast("Copied.", "success");
+		} catch {
+			toast("Could not copy the value.", "error");
+		}
+	});
+	return button;
+}
+
+function customDomainCard(settings: CustomDomainSettings, reload: () => void): HTMLElement {
+	const domain = settings.domain;
+	if (domain === null) {
+		const hostname = el("input", { id: "custom-domain-hostname", placeholder: "blog.example.com", autocomplete: "off", spellcheck: "false" });
+		const connect = el("button", { class: "button primary", disabled: !settings.available || !settings.entitled }, "Connect domain");
+		connect.addEventListener("click", async () => {
+			const value = hostname.value.trim();
+			if (value.length === 0) {
+				toast("Enter a hostname first.", "error");
+				return;
+			}
+			connect.disabled = true;
+			connect.textContent = "Connecting...";
+			try {
+				await api.connectCustomDomain(value);
+				toast("Domain added. Complete the DNS records shown next.", "success");
+				reload();
+			} catch (error) {
+				toast(error instanceof Error ? error.message : "Could not connect the domain.", "error");
+				connect.disabled = false;
+				connect.textContent = "Connect domain";
+			}
+		});
+
+		const reason = !settings.available
+			? "Custom domains are not configured on this installation."
+			: !settings.entitled
+				? "Redeem an active license that includes custom-domain access first."
+				: `Use a subdomain such as blog.example.com. You will point it to ${settings.cnameTarget}.`;
+		return el(
+			"div",
+			{ class: "card custom-domain-card" },
+			el("h2", {}, "Custom domain"),
+			el("p", { class: "hint" }, "Serve your blog from your own hostname without exposing its Bloggy URL."),
+			labelled("Hostname", hostname, reason),
+			el("div", { class: "actions" }, connect),
+		);
+	}
+
+	const statusLabel =
+		domain.status === "active"
+			? "Active"
+			: domain.status === "provisioning"
+				? "Provisioning"
+				: domain.status === "error"
+					? "Needs attention"
+					: domain.status === "disabled"
+						? "License inactive"
+						: "Waiting for DNS";
+	const records = [...(settings.cnameTarget ? [{ type: "CNAME", name: domain.hostname, value: settings.cnameTarget }] : []), ...domain.verificationRecords];
+	const refresh = el("button", { class: "button primary", disabled: !settings.available || !settings.entitled }, "Check status");
+	refresh.addEventListener("click", async () => {
+		refresh.disabled = true;
+		refresh.textContent = "Checking...";
+		try {
+			await api.refreshCustomDomain();
+			toast("Domain status updated.", "success");
+			reload();
+		} catch (error) {
+			toast(error instanceof Error ? error.message : "Could not check the domain.", "error");
+			refresh.disabled = false;
+			refresh.textContent = "Check status";
+		}
+	});
+
+	const remove = el("button", { class: "button danger" }, "Remove domain");
+	remove.addEventListener("click", async () => {
+		if (
+			!(await confirm({
+				title: "Remove custom domain?",
+				body: [el("p", {}, `Visitors will no longer reach your blog at ${domain.hostname}.`)],
+				confirmLabel: "Remove domain",
+				danger: true,
+			}))
+		)
+			return;
+		remove.disabled = true;
+		try {
+			await api.removeCustomDomain();
+			toast("Custom domain removed.", "success");
+			reload();
+		} catch (error) {
+			toast(error instanceof Error ? error.message : "Could not remove the domain.", "error");
+			remove.disabled = false;
+		}
+	});
+
+	return el(
+		"div",
+		{ class: "card custom-domain-card" },
+		el(
+			"div",
+			{ class: "card-top custom-domain-heading" },
+			el("div", {}, el("h2", {}, "Custom domain"), el("p", { class: "hint" }, domain.hostname)),
+			el("span", { class: `pill domain-${domain.status}` }, statusLabel),
+		),
+		domain.status === "active" &&
+			el(
+				"p",
+				{ class: "custom-domain-live" },
+				"Your blog is available at ",
+				el("a", { href: `https://${domain.hostname}`, target: "_blank", rel: "noopener" }, `https://${domain.hostname}`),
+				".",
+			),
+		domain.status !== "active" && el("p", { class: "hint" }, "Add every record below, wait for DNS propagation, then check the status."),
+		el(
+			"div",
+			{ class: "domain-records" },
+			...records.map((record) =>
+				el(
+					"div",
+					{ class: "domain-record" },
+					el("span", { class: "pill" }, record.type),
+					el("div", {}, el("strong", {}, record.name), el("code", {}, record.value)),
+					copyValue(record.value),
+				),
+			),
+		),
+		domain.lastError && el("p", { class: "domain-error" }, domain.lastError),
+		!settings.entitled &&
+			el("p", { class: "domain-error" }, "Your custom-domain license is inactive. The saved domain can be restored after you redeem another eligible license."),
+		el("div", { class: "actions custom-domain-actions" }, refresh, remove),
+	);
+}
+
 export async function renderSettings(root: HTMLElement): Promise<void> {
 	render(root, el("div", { class: "loading" }, el("span", { class: "spinner" }), " Loading settings..."));
 
@@ -144,20 +282,23 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 	let sessions: Session[] = [];
 	let customization: CreatorCustomization = { customCss: "", homeTemplate: "", postTemplate: "", updatedAt: null };
 	let entitlements: LicenseEntitlements = { baseStorage: 0, additionalStorage: 0, limit: 0, customDomain: false, licenses: [] };
+	let customDomain: CustomDomainSettings = { available: false, provider: "disabled", cnameTarget: "", entitled: false, domain: null };
 
 	try {
 		const me = await api.me();
 		creator = me.creator;
 		backupCodesRemaining = me.backupCodesRemaining;
 		setCreator(creator);
-		const [sessionResult, customizationResult, licenseResult] = await Promise.all([
+		const [sessionResult, customizationResult, licenseResult, customDomainResult] = await Promise.all([
 			api.sessions(),
 			creator.membership?.isOwner === false ? Promise.resolve(null) : api.customization(),
 			creator.membership?.isOwner === false ? Promise.resolve(null) : api.licenses(),
+			creator.membership?.isOwner === false ? Promise.resolve(null) : api.customDomain(),
 		]);
 		sessions = sessionResult.sessions;
 		if (customizationResult) customization = customizationResult;
 		if (licenseResult) entitlements = licenseResult;
+		if (customDomainResult) customDomain = customDomainResult;
 	} catch (err) {
 		render(root, el("div", { class: "empty" }, err instanceof Error ? err.message : "Could not load your settings."));
 		return;
@@ -532,6 +673,8 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 			),
 
 		isOwner && premiumLicenses(entitlements, reload),
+
+		isOwner && customDomainCard(customDomain, reload),
 
 		isOwner &&
 			el(

@@ -10,6 +10,8 @@ import { deletePasswordResetTokens } from "../db/password-resets.ts";
 import { deleteEmailConfirmationTokens } from "../db/email-confirmations.ts";
 import { deleteCustomization } from "../db/customizations.ts";
 import { revokeLicensesByCreator } from "../db/licenses.ts";
+import { deleteCustomDomainByUsername, findCustomDomainByUsername } from "../db/custom-domains.ts";
+import { deleteCustomDomainResources } from "./custom-domain-provider.ts";
 
 /**
  * Deletes an account and everything attached to it.
@@ -48,6 +50,15 @@ export async function purgeCreator(username: string, reason: string): Promise<vo
 	await deletePasswordResetTokens(username);
 	await deleteEmailConfirmationTokens(username);
 	await deleteCustomization(username);
+	const customDomain = await findCustomDomainByUsername(username);
+	if (customDomain) {
+		try {
+			await deleteCustomDomainResources(customDomain);
+		} catch (err) {
+			logger.warn(`Failed to remove external custom-domain resources for ${username}`, { error: String(err) });
+		}
+		await deleteCustomDomainByUsername(username);
+	}
 	await revokeLicensesByCreator(username);
 	await deleteCreator(username);
 

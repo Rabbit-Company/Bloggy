@@ -10,12 +10,13 @@ import { findSignedInCreator, requireAuth } from "../middleware/auth.ts";
 import { ok } from "../lib/response.ts";
 import type { PublicConfig } from "../../shared/constants.ts";
 import { analyticsEnabled } from "../lib/burrowgate.ts";
-import { renderCreatorPage, renderMainPage, renderPostPage } from "../ssr/pages.ts";
+import { customPageLocation, renderCreatorPage, renderMainPage, renderPostPage, type PublicPageLocation } from "../ssr/pages.ts";
 import { findCustomization } from "../db/customizations.ts";
-import { renderAtom, renderJsonFeed, renderRobots, renderRss, renderSitemap } from "../ssr/feeds.ts";
+import { renderAtom, renderCreatorSitemap, renderJsonFeed, renderRobots, renderRss, renderSitemap } from "../ssr/feeds.ts";
 import { PUBLIC_ASSETS, type PublicAsset } from "../lib/public-assets.ts";
 import { logger } from "../lib/logger.ts";
-import type { AppState } from "../types.ts";
+import type { AppContext, AppState } from "../types.ts";
+import { findActiveCustomDomainByUsername } from "../db/custom-domains.ts";
 
 const POSTS_PER_PAGE = 12;
 
@@ -45,6 +46,36 @@ function xml(body: string, contentType: string): Response {
 	});
 }
 
+async function creatorListing(ctx: AppContext, username: string, location?: PublicPageLocation): Promise<Response> {
+	const creator = await requireCreator(username);
+	const filter = readFilter(ctx.req.url);
+	const page = readPage(ctx.req.url);
+	const [posts, total, customization] = await Promise.all([
+		listPublishedByCreator(creator.username, POSTS_PER_PAGE, (page - 1) * POSTS_PER_PAGE, filter),
+		countPublishedByCreator(creator.username, filter),
+		findCustomization(creator.username),
+	]);
+	const headers = filter.search === undefined ? undefined : { "X-Robots-Tag": "noindex" };
+	return ctx.html(renderCreatorPage(creator, posts, filter, { page, total, perPage: POSTS_PER_PAGE }, customization, location), 200, headers);
+}
+
+async function creatorPost(ctx: AppContext, username: string, slug: string, location?: PublicPageLocation): Promise<Response> {
+	const creator = await requireCreator(username);
+	if (!isSlugValid(slug)) throw new ApiError(ErrorCode.POST_NOT_FOUND);
+	const [post, customization] = await Promise.all([findPublishedPost(creator.username, slug), findCustomization(creator.username)]);
+	if (!post) throw new ApiError(ErrorCode.POST_NOT_FOUND);
+	return ctx.html(renderPostPage(creator, post, location ? { location } : {}, customization));
+}
+
+async function redirectToCustomDomain(ctx: AppContext, username: string, pathname: string): Promise<Response | null> {
+	const domain = await findActiveCustomDomainByUsername(username);
+	if (!domain) return null;
+	const incoming = new URL(ctx.req.url);
+	const target = new URL(pathname, `https://${domain.hostname}`);
+	target.search = incoming.search;
+	return ctx.redirect(target.toString(), 302);
+}
+
 export function publicRoutes(app: Web<AppState>): void {
 	for (const asset of PUBLIC_ASSETS) {
 		app.get(asset.path, (ctx) => serveAsset(ctx.req, asset, true));
@@ -54,28 +85,16 @@ export function publicRoutes(app: Web<AppState>): void {
 	}
 
 	app.get("/", publicCache(), async (ctx) => {
+		const custom = ctx.get("customDomain");
+		if (custom) return await creatorListing(ctx, custom.username, customPageLocation(custom.origin));
 		const topic = readTopic(ctx.req.url);
 		const [creators, topics, viewer] = await Promise.all([listCreators(60, topic), listCreatorCategories(), findSignedInCreator(ctx.req)]);
 		return ctx.html(renderMainPage(creators, topics, topic, viewer ?? undefined));
 	});
 
 	app.get("/creator/:username", publicCache(), async (ctx) => {
-		const creator = await requireCreator(ctx.params.username);
-		const filter = readFilter(ctx.req.url);
-		const page = readPage(ctx.req.url);
-
-		// Drafts are filtered in SQL rather than after the fact, so a public
-		// page cannot leak one by forgetting to slice them off.
-		const [posts, total, customization] = await Promise.all([
-			listPublishedByCreator(creator.username, POSTS_PER_PAGE, (page - 1) * POSTS_PER_PAGE, filter),
-			countPublishedByCreator(creator.username, filter),
-			findCustomization(creator.username),
-		]);
-
-		// Search results are near-duplicates of the listing and unbounded in
-		// number, so they are kept out of search indexes. Tag pages are not.
-		const headers = filter.search === undefined ? undefined : { "X-Robots-Tag": "noindex" };
-		return ctx.html(renderCreatorPage(creator, posts, filter, { page, total, perPage: POSTS_PER_PAGE }, customization), 200, headers);
+		const username = ctx.params.username ?? "";
+		return (await redirectToCustomDomain(ctx, username, "/")) ?? (await creatorListing(ctx, username));
 	});
 
 	// Registered before the post route so `/creator/:username/feed.rss` is not
@@ -83,32 +102,31 @@ export function publicRoutes(app: Web<AppState>): void {
 	// so the two can never legitimately collide.
 
 	app.get("/creator/:username/feed.rss", publicCache(), async (ctx) => {
+		const redirected = await redirectToCustomDomain(ctx, ctx.params.username ?? "", "/feed.rss");
+		if (redirected) return redirected;
 		const { creator, posts } = await feedData(ctx.params.username);
 		return xml(renderRss(creator, posts), "application/rss+xml; charset=utf-8");
 	});
 
 	app.get("/creator/:username/feed.atom", publicCache(), async (ctx) => {
+		const redirected = await redirectToCustomDomain(ctx, ctx.params.username ?? "", "/feed.atom");
+		if (redirected) return redirected;
 		const { creator, posts } = await feedData(ctx.params.username);
 		return xml(renderAtom(creator, posts), "application/atom+xml; charset=utf-8");
 	});
 
 	app.get("/creator/:username/feed.json", publicCache(), async (ctx) => {
+		const redirected = await redirectToCustomDomain(ctx, ctx.params.username ?? "", "/feed.json");
+		if (redirected) return redirected;
 		const { creator, posts } = await feedData(ctx.params.username);
 		return xml(renderJsonFeed(creator, posts), "application/feed+json; charset=utf-8");
 	});
 
 	app.get("/creator/:username/:slug", publicCache(), async (ctx) => {
-		const creator = await requireCreator(ctx.params.username);
-
+		const username = ctx.params.username ?? "";
 		const slug = ctx.params.slug ?? "";
-		if (!isSlugValid(slug)) throw new ApiError(ErrorCode.POST_NOT_FOUND);
-
-		// A draft 404s here exactly as a missing post does, so its existence is
-		// not observable from outside. The author previews it at /preview/:slug.
-		const [post, customization] = await Promise.all([findPublishedPost(creator.username, slug), findCustomization(creator.username)]);
-		if (!post) throw new ApiError(ErrorCode.POST_NOT_FOUND);
-
-		return ctx.html(renderPostPage(creator, post, {}, customization));
+		const redirected = await redirectToCustomDomain(ctx, username, `/${encodeURIComponent(slug)}`);
+		return redirected ?? (await creatorPost(ctx, username, slug));
 	});
 
 	/**
@@ -137,12 +155,19 @@ export function publicRoutes(app: Web<AppState>): void {
 	});
 
 	app.get("/sitemap.xml", publicCache(), async (ctx) => {
+		const custom = ctx.get("customDomain");
+		if (custom) {
+			const creator = await requireCreator(custom.username);
+			const posts = (await listAllPostRefs()).filter((post) => post.username === custom.username);
+			return xml(renderCreatorSitemap(creator, posts, customPageLocation(custom.origin)), "application/xml; charset=utf-8");
+		}
 		const [creators, posts] = await Promise.all([listCreators(1000), listAllPostRefs()]);
 		return xml(renderSitemap(creators, posts), "application/xml; charset=utf-8");
 	});
 
 	app.get("/robots.txt", (ctx) => {
-		return ctx.text(renderRobots(), 200, { "Cache-Control": "public, max-age=86400" });
+		const custom = ctx.get("customDomain");
+		return ctx.text(renderRobots(custom?.origin), 200, { "Cache-Control": "public, max-age=86400" });
 	});
 
 	app.get("/api/v1/config", publicCache(60), (ctx) => {
@@ -168,6 +193,36 @@ export function publicRoutes(app: Web<AppState>): void {
 			logger.error("Health check failed", { error: String(err) });
 			return ctx.json({ status: "error", database: config.database.dialect }, 503);
 		}
+	});
+
+	app.get("/feed.rss", publicCache(), async (ctx) => {
+		const custom = ctx.get("customDomain");
+		if (!custom) throw new ApiError(ErrorCode.NOT_FOUND);
+		const { creator, posts } = await feedData(custom.username);
+		return xml(renderRss(creator, posts, customPageLocation(custom.origin)), "application/rss+xml; charset=utf-8");
+	});
+
+	app.get("/feed.atom", publicCache(), async (ctx) => {
+		const custom = ctx.get("customDomain");
+		if (!custom) throw new ApiError(ErrorCode.NOT_FOUND);
+		const { creator, posts } = await feedData(custom.username);
+		return xml(renderAtom(creator, posts, customPageLocation(custom.origin)), "application/atom+xml; charset=utf-8");
+	});
+
+	app.get("/feed.json", publicCache(), async (ctx) => {
+		const custom = ctx.get("customDomain");
+		if (!custom) throw new ApiError(ErrorCode.NOT_FOUND);
+		const { creator, posts } = await feedData(custom.username);
+		return xml(renderJsonFeed(creator, posts, customPageLocation(custom.origin)), "application/feed+json; charset=utf-8");
+	});
+}
+
+/** Registered last so normal one-segment routes such as /metrics win first. */
+export function customDomainPostRoute(app: Web<AppState>): void {
+	app.get("/:customDomainSlug", publicCache(), async (ctx) => {
+		const custom = ctx.get("customDomain");
+		if (!custom) throw new ApiError(ErrorCode.NOT_FOUND);
+		return await creatorPost(ctx, custom.username, ctx.params.customDomainSlug ?? "", customPageLocation(custom.origin));
 	});
 }
 

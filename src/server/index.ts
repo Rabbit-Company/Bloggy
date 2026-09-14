@@ -16,21 +16,23 @@ import { authRoutes } from "./routes/auth.ts";
 import { creatorRoutes } from "./routes/creators.ts";
 import { postRoutes } from "./routes/posts.ts";
 import { mediaRoutes } from "./routes/media.ts";
-import { publicRoutes } from "./routes/public.ts";
+import { customDomainPostRoute, publicRoutes } from "./routes/public.ts";
 import { adminRoutes, refreshGauges } from "./routes/admin.ts";
 import { moderationRoutes } from "./routes/moderation.ts";
 import { panelRoutes } from "./routes/panel.ts";
 import { analyticsRoutes } from "./routes/analytics.ts";
 import { teamRoutes } from "./routes/team.ts";
 import { licenseRoutes } from "./routes/licenses.ts";
+import { customDomainRoutes } from "./routes/custom-domains.ts";
 import { pruneExpiredTeamInvites } from "./db/team.ts";
 import { pruneExpiredPasswordResetTokens } from "./db/password-resets.ts";
 import { pruneExpiredEmailConfirmationTokens } from "./db/email-confirmations.ts";
 import { csrfGuard } from "./middleware/csrf.ts";
 import { startBackupSchedule } from "./lib/backup.ts";
 import { isAdminCommand, readUsername, runAdminCommand } from "./lib/admin-cli.ts";
-import { renderErrorPage } from "./ssr/pages.ts";
+import { renderCustomDomainErrorPage, renderErrorPage } from "./ssr/pages.ts";
 import type { AppMiddleware, AppState } from "./types.ts";
+import { customDomainContext } from "./middleware/custom-domain.ts";
 
 function wantsJson(req: Request): boolean {
 	const url = new URL(req.url);
@@ -68,6 +70,7 @@ export function createApp(): Web<AppState> {
 	app.use(metrics());
 	app.use(securityHeaders());
 	app.use(normalizeErrorEnvelope());
+	app.use(customDomainContext());
 
 	app.use(
 		loggerMiddleware<AppState>({
@@ -123,10 +126,14 @@ export function createApp(): Web<AppState> {
 	analyticsRoutes(app);
 	teamRoutes(app);
 	licenseRoutes(app);
+	customDomainRoutes(app);
 	adminRoutes(app);
 	moderationRoutes(app);
+	customDomainPostRoute(app);
 
 	app.onNotFound((ctx) => {
+		const custom = ctx.get("customDomain");
+		if (custom) return ctx.html(renderCustomDomainErrorPage(404, "This page doesn't exist.", custom.origin), 404);
 		if (wantsJson(ctx.req)) {
 			return ctx.json({ error: ErrorCode.NOT_FOUND, info: "Invalid API endpoint." }, 404);
 		}
@@ -134,7 +141,9 @@ export function createApp(): Web<AppState> {
 	});
 
 	app.onError((err, ctx) => {
+		const custom = ctx.get("customDomain");
 		if (err instanceof ApiError) {
+			if (custom) return ctx.html(renderCustomDomainErrorPage(err.status, err.message, custom.origin), err.status);
 			if (wantsJson(ctx.req)) {
 				return ctx.json({ error: err.code, info: err.message, ...err.details }, err.status);
 			}
@@ -142,6 +151,7 @@ export function createApp(): Web<AppState> {
 		}
 
 		logger.error(`Unhandled error: ${err.message}`, { stack: err.stack, url: ctx.req.url });
+		if (custom) return ctx.html(renderCustomDomainErrorPage(500, "Something went wrong.", custom.origin), 500);
 
 		if (wantsJson(ctx.req)) {
 			return ctx.json({ error: ErrorCode.INTERNAL_ERROR, info: errorMessage(ErrorCode.INTERNAL_ERROR) }, 500);

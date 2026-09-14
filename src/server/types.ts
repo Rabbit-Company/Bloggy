@@ -19,6 +19,7 @@ export interface AppState extends Record<string, unknown> {
 	token: string;
 	authSource: "cookie" | "bearer";
 	actor: AuthActor;
+	customDomain: { username: string; hostname: string; origin: string } | null;
 }
 
 export type AppContext = Context<AppState>;

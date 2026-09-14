@@ -219,6 +219,32 @@ export interface LicenseEntitlements {
 	licenses: License[];
 }
 
+export type CustomDomainStatus = "pending" | "provisioning" | "active" | "error" | "disabled";
+
+export interface DomainVerificationRecord {
+	type: "TXT" | "CNAME";
+	name: string;
+	value: string;
+}
+
+export interface CustomDomain {
+	hostname: string;
+	status: CustomDomainStatus;
+	verificationRecords: DomainVerificationRecord[];
+	lastError: string | null;
+	createdAt: string;
+	updatedAt: string;
+	activatedAt: string | null;
+}
+
+export interface CustomDomainSettings {
+	available: boolean;
+	provider: "disabled" | "cloudflare" | "burrowgate" | "manual";
+	cnameTarget: string;
+	entitled: boolean;
+	domain: CustomDomain | null;
+}
+
 export interface Backup {
 	key: string;
 	name: string;
@@ -365,6 +391,22 @@ export const api = {
 			method: "POST",
 			body: json({ key }),
 		});
+	},
+
+	customDomain() {
+		return request<CustomDomainSettings>("/api/v1/custom-domain");
+	},
+
+	connectCustomDomain(hostname: string) {
+		return request<CustomDomainSettings>("/api/v1/custom-domain", { method: "POST", body: json({ hostname }) });
+	},
+
+	refreshCustomDomain() {
+		return request<CustomDomainSettings>("/api/v1/custom-domain/refresh", { method: "POST" });
+	},
+
+	removeCustomDomain() {
+		return request<void>("/api/v1/custom-domain", { method: "DELETE" });
 	},
 
 	adminLicenses(limit = 25, offset = 0, search = "") {

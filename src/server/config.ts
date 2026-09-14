@@ -3,6 +3,7 @@ import type { IpExtractionPreset } from "@rabbit-company/web-middleware/ip-extra
 
 export type StorageDriver = "local" | "s3";
 export type DatabaseDialect = "sqlite" | "postgres" | "mysql" | "mariadb";
+export type CustomDomainProvider = "disabled" | "cloudflare" | "burrowgate" | "manual";
 
 function required(name: string): string {
 	const value = process.env[name];
@@ -63,6 +64,10 @@ if (storageDriver !== "local" && storageDriver !== "s3") {
 }
 
 const domain = origin("DOMAIN", "http://localhost:3000");
+const customDomainProvider = str("CUSTOM_DOMAIN_PROVIDER", "disabled") as CustomDomainProvider;
+if (!["disabled", "cloudflare", "burrowgate", "manual"].includes(customDomainProvider)) {
+	throw new Error(`CUSTOM_DOMAIN_PROVIDER must be "disabled", "cloudflare", "burrowgate" or "manual", got: ${customDomainProvider}`);
+}
 const apiOriginsRaw = str("API_ORIGINS", "");
 const smtpHost = str("SMTP_HOST", "");
 const smtpFrom = str("SMTP_FROM", "");
@@ -182,6 +187,20 @@ export const config = {
 		url: origin("BURROWGATE_URL", ""),
 		token: str("BURROWGATE_TOKEN", ""),
 		siteId: str("BURROWGATE_SITE_ID", ""),
+	},
+
+	customDomains: {
+		provider: customDomainProvider,
+		cnameTarget: str("CUSTOM_DOMAIN_CNAME_TARGET", "").toLowerCase().replace(/\.$/, ""),
+		cloudflare: {
+			apiToken: str("CLOUDFLARE_API_TOKEN", ""),
+			zoneId: str("CLOUDFLARE_ZONE_ID", ""),
+		},
+		burrowgate: {
+			adminToken: str("BURROWGATE_ADMIN_TOKEN", ""),
+			originUrl: origin("BURROWGATE_CUSTOM_DOMAIN_ORIGIN", ""),
+			acmeEmail: str("BURROWGATE_ACME_EMAIL", ""),
+		},
 	},
 } as const;
 

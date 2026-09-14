@@ -90,6 +90,7 @@ Every setting lives in `.env`. See [.env.example](.env.example), which documents
 | `ADMIN_TOKEN`            | none                            | Guards `/metrics` and the maintenance endpoints       |
 | `API_ORIGINS`            | _(empty)_                       | CORS for external clients. Empty disables it entirely |
 | `TRUST_PROXY`            | `direct`                        | Proxy preset, including `cloudflare` and `burrowgate` |
+| `CUSTOM_DOMAIN_PROVIDER` | `disabled`                      | `cloudflare`, `burrowgate`, `manual`, or `disabled`   |
 | `SMTP_HOST`              | _(empty)_                       | Enables account email when set with `SMTP_FROM`       |
 | `SMTP_PORT`              | `587`                           | SMTP server port                                      |
 | `SMTP_SECURE`            | `false`                         | Use implicit TLS, normally with port 465              |
@@ -153,46 +154,50 @@ Every JSON endpoint returns the same envelope:
 
 `error` is `0` on success and a numeric code otherwise. The codes are a stable public contract, defined once in [src/shared/errors.ts](src/shared/errors.ts) and used by both sides. Values are never reused.
 
-| Method   | Path                                       | Purpose                            |
-| -------- | ------------------------------------------ | ---------------------------------- |
-| `POST`   | `/api/v1/auth/register`                    | Create an account                  |
-| `POST`   | `/api/v1/auth/login`                       | Sign in and set the session cookie |
-| `POST`   | `/api/v1/auth/logout`                      | Revoke the current session         |
-| `GET`    | `/api/v1/auth/me`                          | Current creator                    |
-| `POST`   | `/api/v1/auth/password`                    | Change password                    |
-| `POST`   | `/api/v1/auth/password-reset/request`      | Email a one-use reset link         |
-| `POST`   | `/api/v1/auth/password-reset/validate`     | Validate a reset link              |
-| `POST`   | `/api/v1/auth/password-reset/complete`     | Set a new password                 |
-| `POST`   | `/api/v1/auth/email-confirmation/request`  | Resend a confirmation link         |
-| `POST`   | `/api/v1/auth/email-confirmation/validate` | Validate a confirmation link       |
-| `POST`   | `/api/v1/auth/email-confirmation/confirm`  | Confirm the account email          |
-| `GET`    | `/api/v1/auth/sessions`                    | List active sessions               |
-| `DELETE` | `/api/v1/auth/sessions[/:id]`              | Revoke one, or all others          |
-| `POST`   | `/api/v1/auth/2fa/begin\|confirm\|disable` | TOTP enrolment                     |
-| `POST`   | `/api/v1/auth/2fa/backup-codes`            | Regenerate backup codes            |
-| `GET`    | `/api/v1/posts`                            | Your posts, drafts included        |
-| `POST`   | `/api/v1/posts`                            | Create a draft or publish a post   |
-| `GET`    | `/api/v1/posts/:slug`                      | One of your posts, with markdown   |
-| `PUT`    | `/api/v1/posts/:slug`                      | Edit, publish or unpublish         |
-| `DELETE` | `/api/v1/posts/:slug`                      | Delete a post                      |
-| `POST`   | `/api/v1/posts/:slug/request-changes`      | Return a reviewed post with a note |
-| `GET`    | `/api/v1/team`                             | Members and pending invitations    |
-| `POST`   | `/api/v1/team/invitations`                 | Create a seven-day invite link     |
-| `POST`   | `/api/v1/team/invitations/lookup`          | Read a valid invitation            |
-| `POST`   | `/api/v1/team/invitations/accept`          | Accept an invitation               |
-| `PUT`    | `/api/v1/team/members/:username`           | Change a collaborator's role       |
-| `DELETE` | `/api/v1/team/members/:username`           | Remove a collaborator              |
-| `POST`   | `/api/v1/preview`                          | Render markdown for the editor     |
-| `GET`    | `/api/v1/media`                            | Your images, with storage used     |
-| `PUT`    | `/api/v1/media`                            | Upload an image (raw body)         |
-| `DELETE` | `/api/v1/media/:id`                        | Delete an image                    |
-| `POST`   | `/api/v1/creators/me/settings\|social`     | Update blog settings or links      |
-| `PUT`    | `/api/v1/creators/me/avatar`               | Upload an avatar (raw body)        |
-| `DELETE` | `/api/v1/creators/me`                      | Delete the account and all data    |
-| `GET`    | `/api/v1/analytics`                        | Gateway traffic, when configured   |
-| `GET`    | `/api/v1/analytics/pages`                  | Pages you can break out singly     |
-| `GET`    | `/api/v1/creators[/:username]`             | Public creator directory           |
-| `GET`    | `/api/v1/config`                           | Instance limits, read by the panel |
+| Method   | Path                                       | Purpose                             |
+| -------- | ------------------------------------------ | ----------------------------------- |
+| `POST`   | `/api/v1/auth/register`                    | Create an account                   |
+| `POST`   | `/api/v1/auth/login`                       | Sign in and set the session cookie  |
+| `POST`   | `/api/v1/auth/logout`                      | Revoke the current session          |
+| `GET`    | `/api/v1/auth/me`                          | Current creator                     |
+| `POST`   | `/api/v1/auth/password`                    | Change password                     |
+| `POST`   | `/api/v1/auth/password-reset/request`      | Email a one-use reset link          |
+| `POST`   | `/api/v1/auth/password-reset/validate`     | Validate a reset link               |
+| `POST`   | `/api/v1/auth/password-reset/complete`     | Set a new password                  |
+| `POST`   | `/api/v1/auth/email-confirmation/request`  | Resend a confirmation link          |
+| `POST`   | `/api/v1/auth/email-confirmation/validate` | Validate a confirmation link        |
+| `POST`   | `/api/v1/auth/email-confirmation/confirm`  | Confirm the account email           |
+| `GET`    | `/api/v1/auth/sessions`                    | List active sessions                |
+| `DELETE` | `/api/v1/auth/sessions[/:id]`              | Revoke one, or all others           |
+| `POST`   | `/api/v1/auth/2fa/begin\|confirm\|disable` | TOTP enrolment                      |
+| `POST`   | `/api/v1/auth/2fa/backup-codes`            | Regenerate backup codes             |
+| `GET`    | `/api/v1/posts`                            | Your posts, drafts included         |
+| `POST`   | `/api/v1/posts`                            | Create a draft or publish a post    |
+| `GET`    | `/api/v1/posts/:slug`                      | One of your posts, with markdown    |
+| `PUT`    | `/api/v1/posts/:slug`                      | Edit, publish or unpublish          |
+| `DELETE` | `/api/v1/posts/:slug`                      | Delete a post                       |
+| `POST`   | `/api/v1/posts/:slug/request-changes`      | Return a reviewed post with a note  |
+| `GET`    | `/api/v1/team`                             | Members and pending invitations     |
+| `POST`   | `/api/v1/team/invitations`                 | Create a seven-day invite link      |
+| `POST`   | `/api/v1/team/invitations/lookup`          | Read a valid invitation             |
+| `POST`   | `/api/v1/team/invitations/accept`          | Accept an invitation                |
+| `PUT`    | `/api/v1/team/members/:username`           | Change a collaborator's role        |
+| `DELETE` | `/api/v1/team/members/:username`           | Remove a collaborator               |
+| `POST`   | `/api/v1/preview`                          | Render markdown for the editor      |
+| `GET`    | `/api/v1/media`                            | Your images, with storage used      |
+| `PUT`    | `/api/v1/media`                            | Upload an image (raw body)          |
+| `DELETE` | `/api/v1/media/:id`                        | Delete an image                     |
+| `POST`   | `/api/v1/creators/me/settings\|social`     | Update blog settings or links       |
+| `PUT`    | `/api/v1/creators/me/avatar`               | Upload an avatar (raw body)         |
+| `DELETE` | `/api/v1/creators/me`                      | Delete the account and all data     |
+| `GET`    | `/api/v1/analytics`                        | Gateway traffic, when configured    |
+| `GET`    | `/api/v1/analytics/pages`                  | Pages you can break out singly      |
+| `GET`    | `/api/v1/custom-domain`                    | Custom-domain state and DNS records |
+| `POST`   | `/api/v1/custom-domain`                    | Connect a custom domain             |
+| `POST`   | `/api/v1/custom-domain/refresh`            | Recheck DNS and provisioning        |
+| `DELETE` | `/api/v1/custom-domain`                    | Disconnect a custom domain          |
+| `GET`    | `/api/v1/creators[/:username]`             | Public creator directory            |
+| `GET`    | `/api/v1/config`                           | Instance limits, read by the panel  |
 
 Create and edit accept `"status": "draft" | "review" | "changes" | "published"`, defaulting to `published`. The server permits transitions according to the signed-in account's role. See [Collaboration](#collaboration).
 
@@ -257,6 +262,40 @@ Creators redeem keys in **Settings -> Premium licenses**. A key's lifetime start
 
 The paginated **Moderation** table can be searched by username or email and shows each account's used and effective storage allowance, active and total redeemed license counts, and current custom-domain eligibility.
 
+### Custom domains
+
+An owner with an active custom-domain license can connect one hostname from Settings. On an active custom hostname, `/` renders that owner's creator page directly, `/<slug>` renders their post, and feeds, canonical URLs, links, robots and the sitemap remain on the custom origin. Bloggy panel and API routes are unavailable there, and the public page does not show the Bloggy footer.
+
+The original `/creator/<username>` page, posts and feeds redirect to the active custom domain. The redirect is temporary and is not cached because access follows the license lifetime. This makes the custom domain the canonical traffic source without permanently stranding the original Bloggy URL if the license expires.
+
+The hosted setup uses Cloudflare for SaaS so visitor traffic still passes through Cloudflare before reaching BurrowGate. Configure its proxied fallback origin and CNAME target first, then provide:
+
+```bash
+CUSTOM_DOMAIN_PROVIDER=cloudflare
+CUSTOM_DOMAIN_CNAME_TARGET=customers.bloggy.io
+CLOUDFLARE_API_TOKEN=...
+CLOUDFLARE_ZONE_ID=...
+BURROWGATE_URL=https://gateway.example.com
+BURROWGATE_ADMIN_TOKEN=...
+BURROWGATE_CUSTOM_DOMAIN_ORIGIN=http://127.0.0.1:3000
+BURROWGATE_ACME_EMAIL=admin@example.com
+```
+
+The Cloudflare token only needs custom-hostname access to that zone. The BurrowGate token needs permission to create and remove sites and manage their certificates. Do not reuse the read-only monitoring token.
+
+For the hosted Cloudflare setup:
+
+1. Create a proxied fallback hostname in the SaaS zone that resolves to BurrowGate and select it as the Cloudflare for SaaS fallback origin.
+2. Create the proxied `CUSTOM_DOMAIN_CNAME_TARGET` record pointing to that fallback hostname.
+3. Allow inbound HTTP and HTTPS traffic from Cloudflare to BurrowGate. Restrict the origin firewall to Cloudflare addresses when every hosted hostname uses Cloudflare.
+4. Keep HTTP reachable for ACME HTTP-01 validation. Bloggy creates the BurrowGate site after Cloudflare validates the hostname, then asks BurrowGate to issue its origin certificate.
+
+Cloudflare preserves the visitor hostname when connecting to the fallback origin. BurrowGate uses that hostname for TLS and site routing, and Bloggy maps it to the licensed creator. Cloudflare still applies its proxy, WAF, cache and rate controls without a Worker invocation. Use Full (strict) mode after BurrowGate has issued the hostname certificate.
+
+Self-hosters can select `burrowgate` with `BURROWGATE_URL`, `BURROWGATE_ADMIN_TOKEN`, `BURROWGATE_CUSTOM_DOMAIN_ORIGIN`, and `BURROWGATE_ACME_EMAIL`. In that mode the DNS target resolves directly to their gateway, and Bloggy creates one hostname-based BurrowGate site with a Let's Encrypt certificate. Selecting `manual` performs Bloggy ownership and CNAME checks while leaving proxy and certificate configuration to the operator.
+
+The first release expects a subdomain CNAME. Apex-domain support depends on DNS flattening or Cloudflare Apex Proxying and is intentionally not inferred from an A record.
+
 Maintenance endpoints guarded by `ADMIN_TOKEN` as a bearer token remain available for scripts: `GET /api/v1/admin/stats`, `POST /api/v1/admin/cache/purge`, `POST /api/v1/admin/sessions/prune`, and `GET /metrics`.
 
 ## Backups
@@ -300,7 +339,9 @@ Four tabs: traffic over time, most read pages, countries (with a world map), and
 
 **404s are not readership.** Bloggy always passes `successfulOnly`, so a scan for `/creator/you/wp-admin` and friends, which lands inside your path scope and would otherwise arrive complete with countries and referrers, is dropped before it reaches a chart. The flip side is that genuine broken links do not appear either.
 
-**Scoping** is enforced on Bloggy's server. It fixes `siteId` from configuration and derives the path scope from the signed-in creator's session, so a creator sees only their own pages and cannot widen that by editing the request. The prefix carries no trailing slash, so the blog's index page counts alongside its posts, and the gateway matches the path itself or anything beneath it, which excludes a sibling username sharing a prefix. The token is used server-side only and never reaches the browser. Only a fixed set of views is forwarded, so host telemetry such as CPU and memory is not reachable through Bloggy.
+**Scoping** is enforced on Bloggy's server. For the normal Bloggy site, it fixes `siteId` from configuration and derives the path scope from the signed-in creator's session, so a creator sees only their own pages and cannot widen that by editing the request. The prefix carries no trailing slash, so the blog's index page counts alongside its posts, and the gateway matches the path itself or anything beneath it, which excludes a sibling username sharing a prefix. The token is used server-side only and never reaches the browser. Only a fixed set of views is forwarded, so host telemetry such as CPU and memory is not reachable through Bloggy.
+
+When a creator has an active automatically provisioned custom domain, Bloggy uses the BurrowGate site identifier stored for that domain instead. Its analytics paths are `/` and `/<slug>`. The same instance-wide read-only monitoring token is used, so custom domains do not require additional analytics tokens. The original Bloggy page redirects to the custom domain while the license remains active, which keeps traffic on one analytics site and avoids double-counting visitors.
 
 Bloggy **refuses rather than guesses**. BurrowGate reports back which pages it measured, using `pathPrefix` for a whole blog and `path` for a single page, and a reply that does not match what was asked for is thrown away with an error asking the operator to upgrade. A gateway predating these parameters would otherwise silently answer with the whole site, showing one creator everyone else's pages.
 

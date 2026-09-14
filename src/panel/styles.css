@@ -1542,6 +1542,74 @@ input.license-checkbox {
 .generated-key code {
 	overflow-wrap: anywhere;
 }
+.custom-domain-heading {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+.custom-domain-heading h2,
+.custom-domain-heading .hint {
+	margin: 0;
+}
+.custom-domain-live {
+	margin: 0 0 1rem;
+}
+.domain-records {
+	display: grid;
+	gap: 0.6rem;
+	margin: 1rem 0;
+}
+.domain-record {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.7rem;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg);
+}
+.domain-record strong,
+.domain-record code {
+	display: block;
+	overflow-wrap: anywhere;
+}
+.domain-record code {
+	margin-top: 0.2rem;
+	color: var(--muted);
+}
+.domain-error {
+	color: var(--danger);
+	font-size: 0.88rem;
+}
+.custom-domain-actions {
+	margin-top: 1rem;
+}
+.pill.domain-active {
+	background: var(--success-soft);
+	color: var(--success);
+}
+.pill.domain-error,
+.pill.domain-disabled {
+	background: var(--danger-soft);
+	color: var(--danger);
+}
+.pill.domain-pending,
+.pill.domain-provisioning {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+@media (max-width: 640px) {
+	.domain-record {
+		grid-template-columns: 1fr auto;
+	}
+	.domain-record > .pill {
+		grid-column: 1 / -1;
+		justify-self: start;
+	}
+}
 .pill.license-active {
 	background: var(--success-soft);
 	color: var(--success);

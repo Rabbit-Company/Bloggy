@@ -76,6 +76,7 @@ export function migrations(d: DatabaseDialect): Migration[] {
 		index("licenses", "idx_licenses_expires", "expires_at"),
 		index("licenses", "idx_licenses_created", "created_at"),
 	];
+	const customDomainIdx = [index("custom_domains", "idx_custom_domains_username", "username"), index("custom_domains", "idx_custom_domains_status", "status")];
 
 	const body = (columns: string[], indexes: { inline?: string }[]): string =>
 		[...columns, ...indexes.map((i) => i.inline).filter((i): i is string => typeof i === "string")].join(",\n\t");
@@ -329,6 +330,31 @@ export function migrations(d: DatabaseDialect): Migration[] {
 	)}
 )`,
 				...trailing(licenseIdx),
+			],
+		},
+		{
+			name: "0010_custom_domains",
+			statements: [
+				`CREATE TABLE IF NOT EXISTS custom_domains (
+	${body(
+		[
+			`id ${varchar(d, 36)} NOT NULL PRIMARY KEY`,
+			`username ${varchar(d, 30)} NOT NULL UNIQUE`,
+			`hostname ${varchar(d, 253)} NOT NULL UNIQUE`,
+			`provider ${varchar(d, 20)} NOT NULL`,
+			`status ${varchar(d, 24)} NOT NULL`,
+			`provider_hostname_id ${varchar(d, 128)}`,
+			`gateway_site_id ${varchar(d, 128)}`,
+			`verification_records ${text(d)} NOT NULL`,
+			`last_error ${text(d)}`,
+			`created_at ${timestamp(d)} NOT NULL`,
+			`updated_at ${timestamp(d)} NOT NULL`,
+			`activated_at ${timestamp(d)}`,
+		],
+		customDomainIdx,
+	)}
+)`,
+				...trailing(customDomainIdx),
 			],
 		},
 	];

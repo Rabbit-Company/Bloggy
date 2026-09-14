@@ -69,7 +69,7 @@ export class InvalidatableCache implements CacheStorage {
 	}
 
 	/**
-	 * Keys are `METHOD:pathname?search` (see {@link cacheKey}), so the prefix
+	 * Keys are `METHOD:scope:pathname?search` (see {@link cacheKey}), so the prefix
 	 * `/creator/ziga` reaches that creator's page and all of their posts. The
 	 * exact list exists for paths that are a prefix of everything, notably
 	 * the landing page, `/`.
@@ -77,7 +77,8 @@ export class InvalidatableCache implements CacheStorage {
 	deleteByPath(prefixes: string[], exact: string[] = []): number {
 		let removed = 0;
 		for (const key of [...this.entries.keys()]) {
-			const path = key.slice(key.indexOf(":") + 1);
+			const scopeEnd = key.indexOf(":", key.indexOf(":") + 1);
+			const path = key.slice(scopeEnd + 1);
 			const pathname = path.split("?")[0] ?? path;
 			if (prefixes.some((prefix) => path.startsWith(prefix)) || exact.includes(pathname)) {
 				this.entries.delete(key);
@@ -86,19 +87,30 @@ export class InvalidatableCache implements CacheStorage {
 		}
 		return removed;
 	}
+
+	deleteByScope(scopePrefix: string): number {
+		let removed = 0;
+		for (const key of [...this.entries.keys()]) {
+			const scope = key.slice(key.indexOf(":") + 1, key.indexOf(":", key.indexOf(":") + 1));
+			if (!scope.startsWith(scopePrefix)) continue;
+			this.entries.delete(key);
+			removed++;
+		}
+		return removed;
+	}
 }
 
 export const pageCache = new InvalidatableCache(config.cache.maxEntries);
 
 /**
- * The default generator uses `ctx.req.url`, whose origin varies behind proxies
- * and would let the same page occupy several entries, and would make prefix
- * invalidation depend on the host. Path plus query is the identity that
- * actually matters here.
+ * Host and resolved creator are part of the key so identical paths on two
+ * custom domains can never share a response.
  */
-function cacheKey(ctx: { req: Request }): string {
+function cacheKey(ctx: { req: Request; get(name: "customDomain"): { username: string; hostname: string } | null }): string {
 	const url = new URL(ctx.req.url);
-	return `${ctx.req.method}:${url.pathname}${url.search}`;
+	const custom = ctx.get("customDomain");
+	const scope = custom ? `creator=${custom.username}@${custom.hostname}` : url.hostname.toLowerCase();
+	return `${ctx.req.method}:${scope}:${url.pathname}${url.search}`;
 }
 
 /**
@@ -121,7 +133,9 @@ function addVary(response: Response, name: string): void {
 }
 
 function setBrowserCachePolicy(response: Response, req: Request, ttl: number, isPrivate: boolean): Response {
-	if (isPrivate) {
+	if (response.status >= 300 && response.status < 400) {
+		response.headers.set("Cache-Control", "no-store");
+	} else if (isPrivate) {
 		response.headers.set("Cache-Control", "private, no-store");
 	} else if (hasUnboundedQuery(req)) {
 		response.headers.set("Cache-Control", "public, max-age=0, must-revalidate, s-maxage=0");
@@ -174,7 +188,9 @@ export function publicCache(ttl: number = config.cache.ttl): AppMiddleware {
 }
 
 export function invalidateCreator(username: string): void {
-	const removed = pageCache.deleteByPath([`/creator/${username}`, `/api/v1/creators/${username}`, "/api/v1/creators", "/sitemap.xml"], ["/"]);
+	const removed =
+		pageCache.deleteByPath([`/creator/${username}`, `/api/v1/creators/${username}`, "/api/v1/creators", "/sitemap.xml"], ["/"]) +
+		pageCache.deleteByScope(`creator=${username}@`);
 
 	logger.debug(`Invalidated ${removed} cache entries for ${username}`);
 }

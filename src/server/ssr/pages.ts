@@ -11,12 +11,48 @@ import { renderTemplate } from "../lib/customization.ts";
 
 const domain = config.server.domain;
 
-export function creatorUrl(username: string): string {
-	return `${domain}/creator/${username}`;
+export interface PublicPageLocation {
+	origin: string;
+	basePath: string;
+	whiteLabel: boolean;
 }
 
-export function postUrl(username: string, slug: string): string {
-	return `${domain}/creator/${username}/${slug}`;
+export function mainPageLocation(username: string): PublicPageLocation {
+	return { origin: domain, basePath: `/creator/${encodeURIComponent(username)}`, whiteLabel: false };
+}
+
+export function customPageLocation(origin: string): PublicPageLocation {
+	return { origin: origin.replace(/\/+$/, ""), basePath: "", whiteLabel: true };
+}
+
+function homePath(location: PublicPageLocation): string {
+	return location.basePath || "/";
+}
+
+function postPath(location: PublicPageLocation, slug: string): string {
+	return `${location.basePath}/${encodeURIComponent(slug)}`;
+}
+
+export function creatorUrl(username: string, location: PublicPageLocation = mainPageLocation(username)): string {
+	return `${location.origin}${location.basePath}`;
+}
+
+export function postUrl(username: string, slug: string, location: PublicPageLocation = mainPageLocation(username)): string {
+	return `${location.origin}${postPath(location, slug)}`;
+}
+
+function publicMediaUrl(url: string, location: PublicPageLocation): string {
+	if (!location.whiteLabel) return url;
+	const prefix = `${config.storage.cdnUrl}/`;
+	return url.replaceAll(prefix, `${location.origin}/media/`);
+}
+
+export function publicAvatarUrl(username: string, location: PublicPageLocation = mainPageLocation(username)): string {
+	return publicMediaUrl(avatarUrl(username), location);
+}
+
+export function publicPictureUrl(username: string, picture: string, location: PublicPageLocation = mainPageLocation(username)): string {
+	return publicMediaUrl(pictureUrl(username, picture), location);
 }
 
 function renderTagline(description: string): string {
@@ -24,8 +60,8 @@ function renderTagline(description: string): string {
 	return text.length === 0 ? "" : `\n\t<p>${escapeHtml(text)}</p>`;
 }
 
-function feedsFor(username: string): PageMeta["feeds"] {
-	const base = creatorUrl(username);
+function feedsFor(username: string, location: PublicPageLocation): PageMeta["feeds"] {
+	const base = creatorUrl(username, location);
 	return { rss: `${base}/feed.rss`, atom: `${base}/feed.atom`, json: `${base}/feed.json` };
 }
 
@@ -34,8 +70,8 @@ function feedsFor(username: string): PageMeta["feeds"] {
  * whichever host they reached the site by. Behind a proxy, or in development,
  * that is not always the configured domain.
  */
-function feedLink(username: string): string {
-	return `/creator/${encodeURIComponent(username)}/feed.rss`;
+function feedLink(location: PublicPageLocation): string {
+	return `${location.basePath}/feed.rss`;
 }
 
 function themeOf(creator: CreatorRow): string {
@@ -185,22 +221,23 @@ export function renderMainPage(creators: CreatorRow[], topics: string[] = [], ac
 	);
 }
 
-export function tagUrl(username: string, tag: string): string {
-	return `/creator/${encodeURIComponent(username)}?tag=${encodeURIComponent(tag)}`;
+export function tagUrl(username: string, tag: string, location: PublicPageLocation = mainPageLocation(username)): string {
+	return `${homePath(location)}?tag=${encodeURIComponent(tag)}`;
 }
 
-function postCard(creator: CreatorRow, post: PostSummaryRow): string {
-	const href = `/creator/${escapeHtml(creator.username)}/${escapeHtml(post.slug)}`;
+function postCard(creator: CreatorRow, post: PostSummaryRow, location: PublicPageLocation): string {
+	const href = postPath(location, post.slug);
+	const creatorHref = homePath(location);
 	return `<article class="card">
-	<a href="${href}"><img class="cover" src="${escapeHtml(pictureUrl(creator.username, post.picture))}" alt="${escapeHtml(post.title)}" loading="lazy"></a>
+	<a href="${href}"><img class="cover" src="${escapeHtml(publicPictureUrl(creator.username, post.picture, location))}" alt="${escapeHtml(post.title)}" loading="lazy"></a>
 	<div class="body">
-		<a class="tag" href="${escapeHtml(tagUrl(creator.username, post.tag))}">${escapeHtml(post.tag)}</a>
+		<a class="tag" href="${escapeHtml(tagUrl(creator.username, post.tag, location))}">${escapeHtml(post.tag)}</a>
 		<h3><a href="${href}">${escapeHtml(post.title)}</a></h3>
 		<p>${escapeHtml(post.description)}</p>
 		<div class="meta">
-			<a href="/creator/${escapeHtml(creator.username)}"><img src="${escapeHtml(avatarUrl(creator.username))}" alt="${escapeHtml(creator.author)}" loading="lazy"></a>
+			<a href="${escapeHtml(creatorHref)}"><img src="${escapeHtml(publicAvatarUrl(creator.username, location))}" alt="${escapeHtml(creator.author)}" loading="lazy"></a>
 			<div>
-				<a class="name" href="/creator/${escapeHtml(creator.username)}">${escapeHtml(creator.author)}</a>
+				<a class="name" href="${escapeHtml(creatorHref)}">${escapeHtml(creator.author)}</a>
 				<span class="dateline"><time datetime="${escapeHtml(post.published_at ?? post.created_at)}">${escapeHtml(formatDate(post.published_at ?? post.created_at))}</time> &middot; ${post.read_time} min read</span>
 			</div>
 		</div>
@@ -208,16 +245,16 @@ function postCard(creator: CreatorRow, post: PostSummaryRow): string {
 </article>`;
 }
 
-function renderSearch(username: string, active: string): string {
-	return `<form class="search-form" method="get" action="/creator/${escapeHtml(username)}" role="search">
+function renderSearch(location: PublicPageLocation, active: string): string {
+	return `<form class="search-form" method="get" action="${escapeHtml(homePath(location))}" role="search">
 	<input class="search" type="search" name="search" value="${escapeHtml(active)}"
 		placeholder="Search" aria-label="Search posts" enterkeyhint="search" maxlength="100">
 </form>`;
 }
 
-function renderTagNote(username: string, tag: string): string {
+function renderTagNote(location: PublicPageLocation, tag: string): string {
 	return `<p class="filter-note">Posts tagged <strong>${escapeHtml(tag)}</strong>
-	&middot; <a href="/creator/${escapeHtml(username)}">show all</a></p>`;
+	&middot; <a href="${escapeHtml(homePath(location))}">show all</a></p>`;
 }
 
 /** Page two onwards says so, so search results are not all identically titled. */
@@ -258,19 +295,20 @@ export function renderCreatorPage(
 	filter: PostFilter = {},
 	paging: Pagination = { page: 1, total: posts.length, perPage: posts.length || 1 },
 	customization: CreatorCustomization = EMPTY_CUSTOMIZATION,
+	location: PublicPageLocation = mainPageLocation(creator.username),
 ): string {
 	const social = parseSocial(creator.social);
-	const cards = posts.map((post) => postCard(creator, post)).join("\n");
+	const cards = posts.map((post) => postCard(creator, post, location)).join("\n");
 
-	const base = `/creator/${creator.username}`;
+	const base = homePath(location);
 	const hasMore = paging.page * paging.perPage < paging.total;
 
 	const header = `<header class="masthead">
-	<h1><a href="/creator/${escapeHtml(creator.username)}">${escapeHtml(creator.title)}</a></h1>${renderTagline(creator.description)}
-	${renderSocial(social, feedLink(creator.username))}
+	<h1><a href="${escapeHtml(base)}">${escapeHtml(creator.title)}</a></h1>${renderTagline(creator.description)}
+	${renderSocial(social, feedLink(location))}
 </header>`;
-	const search = renderSearch(creator.username, filter.search ?? "");
-	const filterNote = filter.tag === undefined ? "" : renderTagNote(creator.username, filter.tag);
+	const search = renderSearch(location, filter.search ?? "");
+	const filterNote = filter.tag === undefined ? "" : renderTagNote(location, filter.tag);
 	const postList = posts.length === 0 ? `<p class="empty">${emptyMessage(filter)}</p>` : `<div class="grid">\n${cards}\n</div>`;
 	const pagination = hasMore
 		? `<div class="more-wrap"><a class="more" rel="next" href="${escapeHtml(base)}${escapeHtml(listingQuery(filter, paging.page + 1))}">Load more posts</a></div>\n<script src="${BLOG_JS_ASSET.path}" defer></script>`
@@ -295,8 +333,8 @@ ${filterNote}${postList}${pagination}
 	// pages, so they stay out of the index and off the canonical URL.
 	const canonical =
 		filter.search !== undefined
-			? creatorUrl(creator.username)
-			: `${creatorUrl(creator.username)}${listingQuery({ ...filter, search: undefined }, paging.page)}`;
+			? creatorUrl(creator.username, location)
+			: `${creatorUrl(creator.username, location)}${listingQuery({ ...filter, search: undefined }, paging.page)}`;
 
 	return renderPage(
 		{
@@ -304,24 +342,25 @@ ${filterNote}${postList}${pagination}
 			description: creator.description,
 			url: canonical,
 			language: creator.language,
-			image: avatarUrl(creator.username),
-			icon: avatarUrl(creator.username),
+			image: publicAvatarUrl(creator.username, location),
+			icon: publicAvatarUrl(creator.username, location),
 			type: "profile",
-			siteName: config.site.title,
+			siteName: location.whiteLabel ? creator.title : config.site.title,
 			author: creator.author,
 			twitterCreator: social.twitter,
 			theme: themeOf(creator),
 			customCss: creatorCss(creator, customization),
-			feeds: feedsFor(creator.username),
+			feeds: feedsFor(creator.username, location),
+			whiteLabel: location.whiteLabel,
 			noindex: filter.search !== undefined,
 			jsonLd: {
 				"@context": "https://schema.org",
 				"@type": "Blog",
 				name: creator.title,
 				description: creator.description,
-				url: creatorUrl(creator.username),
+				url: creatorUrl(creator.username, location),
 				inLanguage: creator.language,
-				author: { "@type": "Person", name: creator.author, url: creatorUrl(creator.username) },
+				author: { "@type": "Person", name: creator.author, url: creatorUrl(creator.username, location) },
 			},
 		},
 		body,
@@ -330,6 +369,7 @@ ${filterNote}${postList}${pagination}
 
 export interface PostPageOptions {
 	preview?: boolean;
+	location?: PublicPageLocation;
 }
 
 export function renderPostPage(
@@ -338,20 +378,22 @@ export function renderPostPage(
 	options: PostPageOptions = {},
 	customization: CreatorCustomization = EMPTY_CUSTOMIZATION,
 ): string {
+	const location = options.location ?? mainPageLocation(creator.username);
 	const social = parseSocial(creator.social);
-	const url = postUrl(creator.username, post.slug);
-	const picture = pictureUrl(creator.username, post.picture);
+	const url = postUrl(creator.username, post.slug, location);
+	const picture = publicPictureUrl(creator.username, post.picture, location);
+	const avatar = publicAvatarUrl(creator.username, location);
 	const keywords = post.keywords
 		.split(",")
 		.map((k) => k.trim())
 		.filter((k) => k.length > 0);
 
 	const shareText = encodeURIComponent(`${post.title}\n\n${url}`);
-	const content = renderMarkdown(post.markdown);
+	const content = publicMediaUrl(renderMarkdown(post.markdown), location);
 
 	const header = `<header class="masthead">
-	<h2><a href="/creator/${escapeHtml(creator.username)}">${escapeHtml(creator.title)}</a></h2>${renderTagline(creator.description)}
-	${renderSocial(social, feedLink(creator.username))}
+	<h2><a href="${escapeHtml(homePath(location))}">${escapeHtml(creator.title)}</a></h2>${renderTagline(creator.description)}
+	${renderSocial(social, feedLink(location))}
 	</header>`;
 	const preview =
 		options.preview === true
@@ -363,9 +405,9 @@ export function renderPostPage(
 			: "";
 	const postTitle = `<h1>${escapeHtml(post.title)}</h1>`;
 	const byline = `<div class="byline">
-		<a href="/creator/${escapeHtml(creator.username)}"><img src="${escapeHtml(avatarUrl(creator.username))}" alt="${escapeHtml(creator.author)}"></a>
+		<a href="${escapeHtml(homePath(location))}"><img src="${escapeHtml(avatar)}" alt="${escapeHtml(creator.author)}"></a>
 		<div>
-			<a class="name" href="/creator/${escapeHtml(creator.username)}">${escapeHtml(creator.author)}</a>
+			<a class="name" href="${escapeHtml(homePath(location))}">${escapeHtml(creator.author)}</a>
 			<time datetime="${escapeHtml(post.published_at ?? post.created_at)}">${escapeHtml(formatDate(post.published_at ?? post.created_at))}</time> &middot; ${post.read_time} min read
 		</div>
 	</div>`;
@@ -404,7 +446,7 @@ ${share}
 			url,
 			language: post.language,
 			image: picture,
-			icon: avatarUrl(creator.username),
+			icon: avatar,
 			type: "article",
 			siteName: creator.title,
 			author: creator.author,
@@ -417,7 +459,8 @@ ${share}
 			twitterCreator: social.twitter,
 			theme: themeOf(creator),
 			customCss: creatorCss(creator, customization),
-			feeds: feedsFor(creator.username),
+			feeds: feedsFor(creator.username, location),
+			whiteLabel: location.whiteLabel,
 			jsonLd: {
 				"@context": "https://schema.org",
 				"@type": "BlogPosting",
@@ -425,15 +468,15 @@ ${share}
 				description: post.description,
 				url,
 				mainEntityOfPage: { "@type": "WebPage", "@id": url },
-				image: [picture, avatarUrl(creator.username)],
+				image: [picture, avatar],
 				keywords,
 				articleSection: post.category,
 				wordCount: post.word_count,
 				inLanguage: post.language,
 				datePublished: post.published_at ?? post.created_at,
 				dateModified: post.updated_at,
-				author: { "@type": "Person", name: creator.author, url: creatorUrl(creator.username) },
-				publisher: { "@type": "Organization", name: creator.title, url: creatorUrl(creator.username) },
+				author: { "@type": "Person", name: creator.author, url: creatorUrl(creator.username, location) },
+				publisher: { "@type": "Organization", name: creator.title, url: creatorUrl(creator.username, location) },
 			},
 		},
 		body,
@@ -461,6 +504,33 @@ export function renderErrorPage(status: number, message: string): string {
 			siteName: config.site.title,
 			theme: "auto",
 			noindex: true,
+		},
+		body,
+	);
+}
+
+export function renderCustomDomainErrorPage(status: number, message: string, origin: string): string {
+	const body = `<main class="wrap">
+<header class="masthead">
+	<h1>${status}</h1>
+	<p>${escapeHtml(message)}</p>
+	<p><a href="/">Back to the blog</a></p>
+</header>
+</main>`;
+
+	return renderPage(
+		{
+			title: String(status),
+			description: message,
+			url: origin,
+			language: config.site.language,
+			image: "",
+			icon: "",
+			type: "website",
+			siteName: "",
+			theme: "auto",
+			noindex: true,
+			whiteLabel: true,
 		},
 		body,
 	);
