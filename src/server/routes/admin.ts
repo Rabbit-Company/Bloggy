@@ -2,6 +2,7 @@ import { Web } from "@rabbit-company/web";
 import { config } from "../config.ts";
 import { ok } from "../lib/response.ts";
 import { requireAdmin } from "../middleware/auth.ts";
+import { adminRateLimit } from "../middleware/admin-rate-limit.ts";
 import { pageCache, purgeCache } from "../middleware/cache.ts";
 import { METRICS_CONTENT_TYPE, cacheEntries, creatorsTotal, metricsText, postsTotal, sessionsActive } from "../lib/metrics.ts";
 import { countCreators } from "../db/creators.ts";
@@ -30,12 +31,12 @@ export function adminRoutes(app: Web<AppState>): void {
 		});
 	}
 
-	app.post("/api/v1/admin/cache/purge", requireAdmin(), async (ctx) => {
+	app.post("/api/v1/admin/cache/purge", requireAdmin(), adminRateLimit("cache.purge", "write"), async (ctx) => {
 		await purgeCache();
 		return ok(ctx);
 	});
 
-	app.get("/api/v1/admin/stats", requireAdmin(), async (ctx) => {
+	app.get("/api/v1/admin/stats", requireAdmin(), adminRateLimit("stats.read", "read"), async (ctx) => {
 		const [creators, posts, sessions, entries] = await Promise.all([countCreators(), countPosts(), countSessions(), pageCache.size()]);
 
 		return ok(ctx, {
@@ -49,7 +50,7 @@ export function adminRoutes(app: Web<AppState>): void {
 		});
 	});
 
-	app.post("/api/v1/admin/sessions/prune", requireAdmin(), async (ctx) => {
+	app.post("/api/v1/admin/sessions/prune", requireAdmin(), adminRateLimit("sessions.prune", "write"), async (ctx) => {
 		await pruneExpiredSessions();
 		return ok(ctx);
 	});

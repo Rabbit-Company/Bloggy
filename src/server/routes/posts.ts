@@ -42,6 +42,7 @@ import { pictureUrl } from "../lib/storage.ts";
 import { renderMarkdown } from "../ssr/markdown.ts";
 import { POST_MAX_MARKDOWN_BYTES } from "../lib/constants.ts";
 import type { AppState, AuthActor } from "../types.ts";
+import { accountRateLimit } from "../middleware/account-rate-limit.ts";
 
 function readStatus(body: Record<string, unknown>): PostStatus {
 	if (body.status === undefined) return "published";
@@ -105,13 +106,13 @@ function assertWritableStatus(actor: AuthActor, status: PostStatus, existing?: P
 }
 
 export function postRoutes(app: Web<AppState>): void {
-	app.get("/api/v1/posts", requireAuth(), async (ctx) => {
+	app.get("/api/v1/posts", requireAuth(), accountRateLimit("posts.list", "read"), async (ctx) => {
 		const actor = ctx.get("actor");
 		const rows = await listPostsByCreator(ctx.get("creator").username);
 		return ok(ctx, { posts: rows.filter((row) => canAccessPost(actor, row)).map(toPanelPost) });
 	});
 
-	app.post("/api/v1/posts", requireAuth(), async (ctx) => {
+	app.post("/api/v1/posts", requireAuth(), accountRateLimit("posts.create", "write"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["slug", ...POST_FIELDS]);
 
@@ -131,7 +132,7 @@ export function postRoutes(app: Web<AppState>): void {
 		return ok(ctx, { slug: input.slug, status }, 201);
 	});
 
-	app.get("/api/v1/posts/:slug", requireAuth(), async (ctx) => {
+	app.get("/api/v1/posts/:slug", requireAuth(), accountRateLimit("posts.read", "read"), async (ctx) => {
 		const slug = ctx.params.slug ?? "";
 		assertValid(slug, isSlugValid, ErrorCode.INVALID_POST_ID);
 
@@ -142,7 +143,7 @@ export function postRoutes(app: Web<AppState>): void {
 		return ok(ctx, { post: toPanelPost(row) });
 	});
 
-	app.put("/api/v1/posts/:slug", requireAuth(), async (ctx) => {
+	app.put("/api/v1/posts/:slug", requireAuth(), accountRateLimit("posts.update", "write"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, POST_FIELDS);
 
@@ -166,7 +167,7 @@ export function postRoutes(app: Web<AppState>): void {
 		return ok(ctx, { slug: input.slug, status });
 	});
 
-	app.delete("/api/v1/posts/:slug", requireAuth(), async (ctx) => {
+	app.delete("/api/v1/posts/:slug", requireAuth(), accountRateLimit("posts.delete", "write"), async (ctx) => {
 		const slug = ctx.params.slug ?? "";
 		assertValid(slug, isSlugValid, ErrorCode.INVALID_POST_ID);
 
@@ -181,7 +182,7 @@ export function postRoutes(app: Web<AppState>): void {
 		return ok(ctx);
 	});
 
-	app.post("/api/v1/posts/:slug/request-changes", requireAuth(), async (ctx) => {
+	app.post("/api/v1/posts/:slug/request-changes", requireAuth(), accountRateLimit("posts.request-changes", "write"), async (ctx) => {
 		const actor = ctx.get("actor");
 		if (!actor.canPublish) throw new ApiError(ErrorCode.UNAUTHORIZED, "Your role cannot review posts.");
 		const slug = ctx.params.slug ?? "";
@@ -200,7 +201,7 @@ export function postRoutes(app: Web<AppState>): void {
 		return ok(ctx, { slug, status: "changes" });
 	});
 
-	app.post("/api/v1/preview", requireAuth(), async (ctx) => {
+	app.post("/api/v1/preview", requireAuth(), accountRateLimit("posts.preview", "preview"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["markdown"]);
 

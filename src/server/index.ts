@@ -11,6 +11,7 @@ import { migrate } from "./db/migrate.ts";
 import { pruneExpiredSessions } from "./db/sessions.ts";
 import { metrics } from "./middleware/metrics.ts";
 import { normalizeErrorEnvelope } from "./middleware/envelope.ts";
+import { adminApiIpRateLimit } from "./middleware/admin-rate-limit.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { creatorRoutes } from "./routes/creators.ts";
 import { postRoutes } from "./routes/posts.ts";
@@ -92,7 +93,7 @@ export function createApp(): Web<AppState> {
 				origin: config.server.apiOrigins.includes("*") ? "*" : [...config.server.apiOrigins],
 				allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 				allowHeaders: ["Authorization", "Content-Type"],
-				exposeHeaders: ["X-Cache", "RateLimit-Remaining", "RateLimit-Reset"],
+				exposeHeaders: ["X-Cache", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", "RateLimit-Algorithm", "Retry-After"],
 				credentials: false,
 				maxAge: 86400,
 			}),
@@ -110,6 +111,8 @@ export function createApp(): Web<AppState> {
 			statusCode: 429,
 		}),
 	);
+
+	app.use("/api/v1/admin/*", adminApiIpRateLimit());
 
 	panelRoutes(app);
 	publicRoutes(app);

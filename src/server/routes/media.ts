@@ -11,6 +11,7 @@ import { assertStorageAvailable, storageQuota } from "../lib/quota.ts";
 import { findCreator } from "../db/creators.ts";
 import { requireAuth } from "../middleware/auth.ts";
 import type { AppState } from "../types.ts";
+import { accountRateLimit } from "../middleware/account-rate-limit.ts";
 
 const MEDIA_MAX_AGE = 604_800; // 7 days
 
@@ -18,6 +19,7 @@ export function mediaRoutes(app: Web<AppState>): void {
 	app.put(
 		"/api/v1/media",
 		requireAuth(),
+		accountRateLimit("media.upload", "upload"),
 		bodyLimit<AppState>({ maxSize: config.limits.maxImageSize, message: "Images can't be larger than 1 MB." }),
 		async (ctx) => {
 			const contentType = ctx.req.headers.get("Content-Type");
@@ -46,7 +48,7 @@ export function mediaRoutes(app: Web<AppState>): void {
 		},
 	);
 
-	app.get("/api/v1/media", requireAuth(), async (ctx) => {
+	app.get("/api/v1/media", requireAuth(), accountRateLimit("media.list", "read"), async (ctx) => {
 		const username = ctx.get("creator").username;
 		const [rows, quota] = await Promise.all([listMedia(username, "image"), storageQuota(username)]);
 
@@ -57,7 +59,7 @@ export function mediaRoutes(app: Web<AppState>): void {
 		});
 	});
 
-	app.delete("/api/v1/media/:id", requireAuth(), async (ctx) => {
+	app.delete("/api/v1/media/:id", requireAuth(), accountRateLimit("media.delete", "write"), async (ctx) => {
 		const actor = ctx.get("actor");
 		if (!actor.isOwner && !actor.canEditAll) throw new ApiError(ErrorCode.UNAUTHORIZED, "Writers cannot delete shared images.");
 		const id = ctx.params.id ?? "";

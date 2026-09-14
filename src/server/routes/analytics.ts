@@ -15,6 +15,7 @@ import {
 } from "../lib/burrowgate.ts";
 import { listPostsByCreator } from "../db/posts.ts";
 import type { AppState } from "../types.ts";
+import { accountRateLimit } from "../middleware/account-rate-limit.ts";
 
 async function describePaths(username: string, rows: { label: string; value: number; detail?: string }[]) {
 	const titles = new Map((await listPostsByCreator(username)).map((post) => [post.slug, post.title]));
@@ -36,7 +37,7 @@ async function describePaths(username: string, rows: { label: string; value: num
 export function analyticsRoutes(app: Web<AppState>): void {
 	if (!analyticsEnabled()) return;
 
-	app.get("/api/v1/analytics", requireOwner(), async (ctx) => {
+	app.get("/api/v1/analytics", requireOwner(), accountRateLimit("analytics.read", "analytics"), async (ctx) => {
 		const query = ctx.query();
 		const view = query.get("view") ?? "overview";
 		const hours = Number.parseInt(query.get("hours") ?? "168", 10);
@@ -72,7 +73,7 @@ export function analyticsRoutes(app: Web<AppState>): void {
 		}
 	});
 
-	app.get("/api/v1/analytics/pages", requireOwner(), async (ctx) => {
+	app.get("/api/v1/analytics/pages", requireOwner(), accountRateLimit("analytics.pages", "read"), async (ctx) => {
 		const username = ctx.get("creator").username;
 		const posts = await listPostsByCreator(username);
 

@@ -1,5 +1,4 @@
 import { Web } from "@rabbit-company/web";
-import { rateLimit } from "@rabbit-company/web-middleware/rate-limit";
 import { config } from "../config.ts";
 import { ApiError, ErrorCode } from "../lib/errors.ts";
 import { jsonBody, ok, requireFields } from "../lib/response.ts";
@@ -48,6 +47,7 @@ import { emailConfirmationEnabled, passwordResetEmailEnabled, sendEmailConfirmat
 import { logger } from "../lib/logger.ts";
 import { invalidateCreator } from "../middleware/cache.ts";
 import { panelTokenUrl } from "../lib/links.ts";
+import { accountRateLimit, anonymousActionRateLimit } from "../middleware/account-rate-limit.ts";
 
 const ENROLLMENT_TTL_MS = 10 * 60 * 1000;
 
@@ -97,18 +97,7 @@ function deliverInBackground(send: Promise<void>, discardToken: () => Promise<vo
 }
 
 export function authRoutes(app: Web<AppState>): void {
-	/**
-	 * Credential endpoints are the ones worth brute-forcing, so they get a
-	 * tighter budget than the global limit: 10 attempts per 15 minutes per IP.
-	 */
-	const credentialLimit = rateLimit<AppState>({
-		windowMs: 15 * 60 * 1000,
-		max: 10,
-		message: "Too many attempts. Please try again later.",
-		statusCode: 429,
-	});
-
-	app.post("/api/v1/auth/register", credentialLimit, async (ctx) => {
+	app.post("/api/v1/auth/register", anonymousActionRateLimit("auth.register", "register"), async (ctx) => {
 		if (!config.limits.registrationEnabled) throw new ApiError(ErrorCode.REGISTRATION_DISABLED);
 
 		const body = await jsonBody<Record<string, unknown>>(ctx);
@@ -174,7 +163,7 @@ export function authRoutes(app: Web<AppState>): void {
 		return ok(ctx, { username: body.username, emailConfirmationRequired: confirmationRequired }, 201);
 	});
 
-	app.post("/api/v1/auth/login", credentialLimit, async (ctx) => {
+	app.post("/api/v1/auth/login", anonymousActionRateLimit("auth.login", "credential"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["username", "password"]);
 
@@ -236,7 +225,7 @@ export function authRoutes(app: Web<AppState>): void {
 		});
 	});
 
-	app.post("/api/v1/auth/password-reset/request", credentialLimit, async (ctx) => {
+	app.post("/api/v1/auth/password-reset/request", anonymousActionRateLimit("auth.password-reset.request", "email"), async (ctx) => {
 		if (!passwordResetEmailEnabled()) throw new ApiError(ErrorCode.PASSWORD_RESET_UNAVAILABLE);
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["username"]);
@@ -258,7 +247,7 @@ export function authRoutes(app: Web<AppState>): void {
 		return ok(ctx, { message: "If that account exists, a password reset link has been sent to its registered email." });
 	});
 
-	app.post("/api/v1/auth/email-confirmation/request", credentialLimit, async (ctx) => {
+	app.post("/api/v1/auth/email-confirmation/request", anonymousActionRateLimit("auth.email-confirmation.request", "email"), async (ctx) => {
 		if (!emailConfirmationEnabled()) throw new ApiError(ErrorCode.EMAIL_CONFIRMATION_UNAVAILABLE);
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["username"]);
@@ -278,7 +267,7 @@ export function authRoutes(app: Web<AppState>): void {
 		return ok(ctx, { message: "If that account needs confirmation, a new link has been sent to its registered email." });
 	});
 
-	app.post("/api/v1/auth/email-confirmation/validate", credentialLimit, async (ctx) => {
+	app.post("/api/v1/auth/email-confirmation/validate", anonymousActionRateLimit("auth.email-confirmation.validate", "token"), async (ctx) => {
 		if (!emailConfirmationEnabled()) throw new ApiError(ErrorCode.EMAIL_CONFIRMATION_UNAVAILABLE);
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		const token = body.token;
@@ -287,7 +276,7 @@ export function authRoutes(app: Web<AppState>): void {
 		return ok(ctx, { valid: true });
 	});
 
-	app.post("/api/v1/auth/email-confirmation/confirm", credentialLimit, async (ctx) => {
+	app.post("/api/v1/auth/email-confirmation/confirm", anonymousActionRateLimit("auth.email-confirmation.confirm", "token"), async (ctx) => {
 		if (!emailConfirmationEnabled()) throw new ApiError(ErrorCode.EMAIL_CONFIRMATION_UNAVAILABLE);
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		const token = body.token;
@@ -298,7 +287,7 @@ export function authRoutes(app: Web<AppState>): void {
 		return ok(ctx);
 	});
 
-	app.post("/api/v1/auth/password-reset/validate", credentialLimit, async (ctx) => {
+	app.post("/api/v1/auth/password-reset/validate", anonymousActionRateLimit("auth.password-reset.validate", "token"), async (ctx) => {
 		if (!passwordResetEmailEnabled()) throw new ApiError(ErrorCode.PASSWORD_RESET_UNAVAILABLE);
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		const token = body.token;
@@ -307,7 +296,7 @@ export function authRoutes(app: Web<AppState>): void {
 		return ok(ctx, { valid: true });
 	});
 
-	app.post("/api/v1/auth/password-reset/complete", credentialLimit, async (ctx) => {
+	app.post("/api/v1/auth/password-reset/complete", anonymousActionRateLimit("auth.password-reset.complete", "credential"), async (ctx) => {
 		if (!passwordResetEmailEnabled()) throw new ApiError(ErrorCode.PASSWORD_RESET_UNAVAILABLE);
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["token", "password"]);
@@ -327,13 +316,13 @@ export function authRoutes(app: Web<AppState>): void {
 		return ok(ctx);
 	});
 
-	app.post("/api/v1/auth/logout", requireAuth(), async (ctx) => {
+	app.post("/api/v1/auth/logout", requireAuth(), accountRateLimit("auth.logout", "write"), async (ctx) => {
 		await revokeSession(ctx.get("token"));
 		ctx.header("Set-Cookie", clearSessionCookie());
 		return ok(ctx);
 	});
 
-	app.get("/api/v1/auth/me", requireAuth(), (ctx) => {
+	app.get("/api/v1/auth/me", requireAuth(), accountRateLimit("auth.me", "read"), (ctx) => {
 		const creator = ctx.get("creator");
 		return ok(ctx, {
 			creator: authenticatedCreator(ctx),
@@ -341,22 +330,22 @@ export function authRoutes(app: Web<AppState>): void {
 		});
 	});
 
-	app.get("/api/v1/auth/sessions", requireAuth(), async (ctx) => {
+	app.get("/api/v1/auth/sessions", requireAuth(), accountRateLimit("auth.sessions.list", "read"), async (ctx) => {
 		return ok(ctx, { sessions: await summarizeSessions(ctx.get("actor").username, ctx.get("token")) });
 	});
 
-	app.delete("/api/v1/auth/sessions/:id", requireAuth(), async (ctx) => {
+	app.delete("/api/v1/auth/sessions/:id", requireAuth(), accountRateLimit("auth.sessions.revoke", "security"), async (ctx) => {
 		const removed = await deleteSessionByPrefix(ctx.get("actor").username, ctx.params.id ?? "");
 		if (removed === 0) throw new ApiError(ErrorCode.NOT_FOUND, "No such session.");
 		return ok(ctx);
 	});
 
-	app.delete("/api/v1/auth/sessions", requireAuth(), async (ctx) => {
+	app.delete("/api/v1/auth/sessions", requireAuth(), accountRateLimit("auth.sessions.revoke-others", "security"), async (ctx) => {
 		await deleteOtherSessions(ctx.get("actor").username, ctx.get("session").id);
 		return ok(ctx);
 	});
 
-	app.post("/api/v1/auth/password", requireAuth(), credentialLimit, async (ctx) => {
+	app.post("/api/v1/auth/password", requireAuth(), accountRateLimit("auth.password.change", "security"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["currentPassword", "newPassword"]);
 
@@ -390,7 +379,7 @@ export function authRoutes(app: Web<AppState>): void {
 		return ok(ctx, { token: session.token, expiresAt: session.expiresAt });
 	});
 
-	app.post("/api/v1/auth/2fa/begin", requireOwner(), (ctx) => {
+	app.post("/api/v1/auth/2fa/begin", requireOwner(), accountRateLimit("auth.2fa.begin", "security"), (ctx) => {
 		const creator = ctx.get("creator");
 		if (isTwoFactorEnabled(creator)) throw new ApiError(ErrorCode.TWO_FACTOR_ALREADY_ENABLED);
 
@@ -410,7 +399,7 @@ export function authRoutes(app: Web<AppState>): void {
 		});
 	});
 
-	app.post("/api/v1/auth/2fa/confirm", requireOwner(), async (ctx) => {
+	app.post("/api/v1/auth/2fa/confirm", requireOwner(), accountRateLimit("auth.2fa.confirm", "security"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["enrollment", "code"]);
 
@@ -440,7 +429,7 @@ export function authRoutes(app: Web<AppState>): void {
 		return ok(ctx, { backupCodes: pending.backupCodes });
 	});
 
-	app.post("/api/v1/auth/2fa/disable", requireOwner(), async (ctx) => {
+	app.post("/api/v1/auth/2fa/disable", requireOwner(), accountRateLimit("auth.2fa.disable", "security"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["password", "otp"]);
 
@@ -457,7 +446,7 @@ export function authRoutes(app: Web<AppState>): void {
 		return ok(ctx);
 	});
 
-	app.post("/api/v1/auth/2fa/backup-codes", requireOwner(), async (ctx) => {
+	app.post("/api/v1/auth/2fa/backup-codes", requireOwner(), accountRateLimit("auth.2fa.backup-codes", "security"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["password", "otp"]);
 

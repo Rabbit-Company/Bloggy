@@ -23,9 +23,10 @@ import type { AppState } from "../types.ts";
 import { logger } from "../lib/logger.ts";
 import { deletePasswordResetTokens } from "../db/password-resets.ts";
 import { panelTokenUrl } from "../lib/links.ts";
+import { accountRateLimit, anonymousActionRateLimit } from "../middleware/account-rate-limit.ts";
 
 export function teamRoutes(app: Web<AppState>): void {
-	app.get("/api/v1/team", requireOwner(), async (ctx) => {
+	app.get("/api/v1/team", requireOwner(), accountRateLimit("team.list", "read"), async (ctx) => {
 		const username = ctx.get("creator").username;
 		return ok(ctx, {
 			members: await listTeamMembers(username),
@@ -33,7 +34,7 @@ export function teamRoutes(app: Web<AppState>): void {
 		});
 	});
 
-	app.post("/api/v1/team/invitations", requireOwner(), async (ctx) => {
+	app.post("/api/v1/team/invitations", requireOwner(), accountRateLimit("team.invitations.create", "security"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["email", "role"]);
 		assertValid(body.email, isEmailValid, ErrorCode.INVALID_EMAIL);
@@ -54,14 +55,14 @@ export function teamRoutes(app: Web<AppState>): void {
 		);
 	});
 
-	app.delete("/api/v1/team/invitations/:id", requireOwner(), async (ctx) => {
+	app.delete("/api/v1/team/invitations/:id", requireOwner(), accountRateLimit("team.invitations.revoke", "write"), async (ctx) => {
 		const removed = await deleteTeamInvite(ctx.get("creator").username, ctx.params.id ?? "");
 		if (removed === 0) throw new ApiError(ErrorCode.NOT_FOUND, "No such invitation.");
 		logger.audit("Team invitation revoked", { username: ctx.get("creator").username });
 		return ok(ctx);
 	});
 
-	app.put("/api/v1/team/members/:username", requireOwner(), async (ctx) => {
+	app.put("/api/v1/team/members/:username", requireOwner(), accountRateLimit("team.members.update", "write"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["role"]);
 		if (!isTeamRole(body.role)) throw new ApiError(ErrorCode.INVALID_TEAM_ROLE);
@@ -75,7 +76,7 @@ export function teamRoutes(app: Web<AppState>): void {
 		return ok(ctx);
 	});
 
-	app.delete("/api/v1/team/members/:username", requireOwner(), async (ctx) => {
+	app.delete("/api/v1/team/members/:username", requireOwner(), accountRateLimit("team.members.delete", "security"), async (ctx) => {
 		const username = ctx.params.username ?? "";
 		const removed = await deleteTeamMember(ctx.get("creator").username, username);
 		if (removed === 0) throw new ApiError(ErrorCode.NOT_FOUND, "No such team member.");
@@ -85,7 +86,7 @@ export function teamRoutes(app: Web<AppState>): void {
 		return ok(ctx);
 	});
 
-	app.post("/api/v1/team/invitations/lookup", async (ctx) => {
+	app.post("/api/v1/team/invitations/lookup", anonymousActionRateLimit("team.invitations.lookup", "invitation"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		const token = body.token;
 		if (typeof token !== "string" || !/^[A-Za-z0-9]{64}$/.test(token)) throw new ApiError(ErrorCode.INVITE_INVALID);
@@ -101,7 +102,7 @@ export function teamRoutes(app: Web<AppState>): void {
 		});
 	});
 
-	app.post("/api/v1/team/invitations/accept", async (ctx) => {
+	app.post("/api/v1/team/invitations/accept", anonymousActionRateLimit("team.invitations.accept", "invitation"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["token", "username", "password"]);
 		if (typeof body.token !== "string" || !/^[A-Za-z0-9]{64}$/.test(body.token)) throw new ApiError(ErrorCode.INVITE_INVALID);

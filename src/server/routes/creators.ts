@@ -29,9 +29,10 @@ import { clearSessionCookie } from "../lib/cookies.ts";
 import { findCustomization, saveCustomization } from "../db/customizations.ts";
 import { validateCustomization } from "../lib/customization.ts";
 import type { AppState } from "../types.ts";
+import { accountRateLimit } from "../middleware/account-rate-limit.ts";
 
 export function creatorRoutes(app: Web<AppState>): void {
-	app.post("/api/v1/creators/me/settings", requireOwner(), async (ctx) => {
+	app.post("/api/v1/creators/me/settings", requireOwner(), accountRateLimit("creators.settings.update", "write"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["title", "description", "author", "category", "language", "theme"]);
 
@@ -43,11 +44,11 @@ export function creatorRoutes(app: Web<AppState>): void {
 		return ok(ctx, settings);
 	});
 
-	app.get("/api/v1/creators/me/customization", requireOwner(), async (ctx) => {
+	app.get("/api/v1/creators/me/customization", requireOwner(), accountRateLimit("creators.customization.read", "read"), async (ctx) => {
 		return ok(ctx, await findCustomization(ctx.get("creator").username));
 	});
 
-	app.post("/api/v1/creators/me/customization", requireOwner(), async (ctx) => {
+	app.post("/api/v1/creators/me/customization", requireOwner(), accountRateLimit("creators.customization.update", "write"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		const customization = validateCustomization(body);
 		const username = ctx.get("creator").username;
@@ -56,7 +57,7 @@ export function creatorRoutes(app: Web<AppState>): void {
 		return ok(ctx, saved);
 	});
 
-	app.post("/api/v1/creators/me/social", requireOwner(), async (ctx) => {
+	app.post("/api/v1/creators/me/social", requireOwner(), accountRateLimit("creators.social.update", "write"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["social"]);
 
@@ -70,6 +71,7 @@ export function creatorRoutes(app: Web<AppState>): void {
 	app.put(
 		"/api/v1/creators/me/avatar",
 		requireOwner(),
+		accountRateLimit("creators.avatar.upload", "upload"),
 		bodyLimit<AppState>({ maxSize: config.limits.maxAvatarSize, message: "Avatars can't be larger than 300 kB." }),
 		async (ctx) => {
 			const contentType = ctx.req.headers.get("Content-Type");
@@ -94,7 +96,7 @@ export function creatorRoutes(app: Web<AppState>): void {
 		},
 	);
 
-	app.delete("/api/v1/creators/me", requireOwner(), async (ctx) => {
+	app.delete("/api/v1/creators/me", requireOwner(), accountRateLimit("creators.account.delete", "critical"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["password"]);
 

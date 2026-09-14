@@ -6,6 +6,8 @@ import { logger } from "../lib/logger.ts";
 import { jsonBody, ok, requireFields } from "../lib/response.ts";
 import { assertValid, isUuidValid } from "../lib/validation.ts";
 import { requireAdminAccount, requireOwner } from "../middleware/auth.ts";
+import { adminRateLimit } from "../middleware/admin-rate-limit.ts";
+import { accountRateLimit } from "../middleware/account-rate-limit.ts";
 import type { AppContext, AppState } from "../types.ts";
 
 const MAX_BATCH = 500;
@@ -45,11 +47,11 @@ async function accountEntitlements(username: string) {
 }
 
 export function licenseRoutes(app: Web<AppState>): void {
-	app.get("/api/v1/licenses", requireOwner(), async (ctx) => {
+	app.get("/api/v1/licenses", requireOwner(), accountRateLimit("licenses.read", "read"), async (ctx) => {
 		return ok(ctx, await accountEntitlements(ctx.get("creator").username));
 	});
 
-	app.post("/api/v1/licenses/redeem", requireOwner(), async (ctx) => {
+	app.post("/api/v1/licenses/redeem", requireOwner(), accountRateLimit("licenses.redeem", "security"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["key"]);
 		if (!isLicenseKeyValid(body.key)) throw new ApiError(ErrorCode.LICENSE_INVALID);
@@ -62,7 +64,7 @@ export function licenseRoutes(app: Web<AppState>): void {
 		return ok(ctx, { license: result.license, entitlements: await accountEntitlements(username) });
 	});
 
-	app.get("/api/v1/admin/licenses", requireAdminAccount(), async (ctx) => {
+	app.get("/api/v1/admin/licenses", requireAdminAccount(), adminRateLimit("licenses.list", "read"), async (ctx) => {
 		const params = new URL(ctx.req.url).searchParams;
 		const limit = pageNumber(params.get("limit"), LICENSE_PAGE_SIZE, 1, MAX_PAGE_SIZE);
 		const offset = pageNumber(params.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
@@ -71,7 +73,7 @@ export function licenseRoutes(app: Web<AppState>): void {
 
 	// Search terms stay in the request body so a full, unused key cannot be
 	// copied into access logs as part of a URL.
-	app.post("/api/v1/admin/licenses/query", requireAdminAccount(), async (ctx) => {
+	app.post("/api/v1/admin/licenses/query", requireAdminAccount(), adminRateLimit("licenses.query", "read"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		const limit = pageNumber(body.limit, LICENSE_PAGE_SIZE, 1, MAX_PAGE_SIZE);
 		const offset = pageNumber(body.offset, 0, 0, Number.MAX_SAFE_INTEGER);
@@ -79,7 +81,7 @@ export function licenseRoutes(app: Web<AppState>): void {
 		return await licenseListResponse(ctx, limit, offset, search);
 	});
 
-	app.post("/api/v1/admin/licenses", requireAdminAccount(), async (ctx) => {
+	app.post("/api/v1/admin/licenses", requireAdminAccount(), adminRateLimit("licenses.generate", "sensitive"), async (ctx) => {
 		const body = await jsonBody<Record<string, unknown>>(ctx);
 		requireFields(body, ["count", "durationDays", "storageBytes", "customDomain"]);
 
@@ -99,7 +101,7 @@ export function licenseRoutes(app: Web<AppState>): void {
 		return ok(ctx, generated, 201);
 	});
 
-	app.delete("/api/v1/admin/licenses/:id", requireAdminAccount(), async (ctx) => {
+	app.delete("/api/v1/admin/licenses/:id", requireAdminAccount(), adminRateLimit("licenses.revoke", "write"), async (ctx) => {
 		const id = ctx.params.id ?? "";
 		assertValid(id, isUuidValid, ErrorCode.NOT_FOUND);
 		if ((await revokeLicense(id)) === 0) throw new ApiError(ErrorCode.NOT_FOUND, "No active license with that ID.");

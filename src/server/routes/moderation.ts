@@ -12,6 +12,7 @@ import { purgeCreator } from "../lib/purge.ts";
 import { syncMediaFromStorage } from "../lib/media-sync.ts";
 import { backupStatus, createBackup, deleteBackup, listBackups, readBackup, restoreBackup } from "../lib/backup.ts";
 import { requireAdminAccount } from "../middleware/auth.ts";
+import { adminRateLimit } from "../middleware/admin-rate-limit.ts";
 import { invalidateCreator } from "../middleware/cache.ts";
 import { logger } from "../lib/logger.ts";
 import { listTeamMemberUsernames } from "../db/team.ts";
@@ -51,7 +52,7 @@ async function targetCreator(actor: string, username: string | undefined) {
 }
 
 export function moderationRoutes(app: Web<AppState>): void {
-	app.get("/api/v1/admin/creators", requireAdminAccount(), async (ctx) => {
+	app.get("/api/v1/admin/creators", requireAdminAccount(), adminRateLimit("creators.list", "read"), async (ctx) => {
 		const params = new URL(ctx.req.url).searchParams;
 		const sort = readSort(params.get("sort"));
 		const descending = params.get("dir") !== "asc";
@@ -74,7 +75,7 @@ export function moderationRoutes(app: Web<AppState>): void {
 	 * immediately. Post rows are left alone, so lifting a suspension restores
 	 * exactly what was published before rather than republishing drafts.
 	 */
-	app.post("/api/v1/admin/creators/:username/suspend", requireAdminAccount(), async (ctx) => {
+	app.post("/api/v1/admin/creators/:username/suspend", requireAdminAccount(), adminRateLimit("creators.suspend", "write"), async (ctx) => {
 		const actor = ctx.get("creator").username;
 		const creator = await targetCreator(actor, ctx.params.username);
 
@@ -87,7 +88,7 @@ export function moderationRoutes(app: Web<AppState>): void {
 		return ok(ctx, { username: creator.username, suspended: true });
 	});
 
-	app.delete("/api/v1/admin/creators/:username/suspend", requireAdminAccount(), async (ctx) => {
+	app.delete("/api/v1/admin/creators/:username/suspend", requireAdminAccount(), adminRateLimit("creators.restore", "write"), async (ctx) => {
 		const actor = ctx.get("creator").username;
 		const creator = await targetCreator(actor, ctx.params.username);
 
@@ -104,7 +105,7 @@ export function moderationRoutes(app: Web<AppState>): void {
 	 * Allowed on an admin's own account and on other admins, unlike the
 	 * destructive actions: it only reads the bucket and corrects bookkeeping.
 	 */
-	app.post("/api/v1/admin/creators/:username/media/sync", requireAdminAccount(), async (ctx) => {
+	app.post("/api/v1/admin/creators/:username/media/sync", requireAdminAccount(), adminRateLimit("media.sync-one", "sensitive"), async (ctx) => {
 		const username = ctx.params.username;
 		assertValid(username, isUsernameValid, ErrorCode.INVALID_USERNAME);
 
@@ -118,7 +119,7 @@ export function moderationRoutes(app: Web<AppState>): void {
 	 * The same, for every account. This is the one-press fix after pointing a
 	 * fresh install at a bucket that already has media in it.
 	 */
-	app.post("/api/v1/admin/media/sync", requireAdminAccount(), async (ctx) => {
+	app.post("/api/v1/admin/media/sync", requireAdminAccount(), adminRateLimit("media.sync-all", "expensive"), async (ctx) => {
 		const creators = await listAllCreators();
 
 		let imported = 0;
@@ -136,18 +137,18 @@ export function moderationRoutes(app: Web<AppState>): void {
 		return ok(ctx, { creators: creators.length, imported, pruned, skipped });
 	});
 
-	app.get("/api/v1/admin/backups", requireAdminAccount(), async (ctx) => {
+	app.get("/api/v1/admin/backups", requireAdminAccount(), adminRateLimit("backups.list", "read"), async (ctx) => {
 		const status = backupStatus();
 		return ok(ctx, { ...status, backups: status.available ? await listBackups() : [] });
 	});
 
-	app.post("/api/v1/admin/backups", requireAdminAccount(), async (ctx) => {
+	app.post("/api/v1/admin/backups", requireAdminAccount(), adminRateLimit("backups.create", "expensive"), async (ctx) => {
 		const entry = await createBackup();
 		logger.audit(`Backup taken by ${ctx.get("creator").username}`, { name: entry.name });
 		return ok(ctx, entry, 201);
 	});
 
-	app.get("/api/v1/admin/backups/:name", requireAdminAccount(), async (ctx) => {
+	app.get("/api/v1/admin/backups/:name", requireAdminAccount(), adminRateLimit("backups.download", "sensitive"), async (ctx) => {
 		const name = ctx.params.name ?? "";
 		const { stream, size } = await readBackup(name);
 
@@ -161,7 +162,7 @@ export function moderationRoutes(app: Web<AppState>): void {
 		});
 	});
 
-	app.delete("/api/v1/admin/backups/:name", requireAdminAccount(), async (ctx) => {
+	app.delete("/api/v1/admin/backups/:name", requireAdminAccount(), adminRateLimit("backups.delete", "sensitive"), async (ctx) => {
 		await deleteBackup(ctx.params.name ?? "");
 		return ok(ctx);
 	});
@@ -171,13 +172,13 @@ export function moderationRoutes(app: Web<AppState>): void {
 	 * restart. The response goes out before the exit, so the panel can say what
 	 * is about to happen rather than just losing the connection.
 	 */
-	app.post("/api/v1/admin/backups/:name/restore", requireAdminAccount(), async (ctx) => {
+	app.post("/api/v1/admin/backups/:name/restore", requireAdminAccount(), adminRateLimit("backups.restore", "critical"), async (ctx) => {
 		const result = await restoreBackup(ctx.params.name ?? "");
 		logger.audit(`Backup restored by ${ctx.get("creator").username}`, { ...result });
 		return ok(ctx, result);
 	});
 
-	app.delete("/api/v1/admin/creators/:username", requireAdminAccount(), async (ctx) => {
+	app.delete("/api/v1/admin/creators/:username", requireAdminAccount(), adminRateLimit("creators.delete", "sensitive"), async (ctx) => {
 		const actor = ctx.get("creator").username;
 		const creator = await targetCreator(actor, ctx.params.username);
 
@@ -185,7 +186,7 @@ export function moderationRoutes(app: Web<AppState>): void {
 		return ok(ctx);
 	});
 
-	app.delete("/api/v1/admin/creators/:username/posts/:slug", requireAdminAccount(), async (ctx) => {
+	app.delete("/api/v1/admin/creators/:username/posts/:slug", requireAdminAccount(), adminRateLimit("posts.delete", "write"), async (ctx) => {
 		const actor = ctx.get("creator").username;
 		const creator = await targetCreator(actor, ctx.params.username);
 
@@ -206,7 +207,7 @@ export function moderationRoutes(app: Web<AppState>): void {
 	 * The storage object goes first, matching {@link purgeCreator}: a failure
 	 * there leaves an orphaned file rather than a row pointing at nothing.
 	 */
-	app.delete("/api/v1/admin/media/:id", requireAdminAccount(), async (ctx) => {
+	app.delete("/api/v1/admin/media/:id", requireAdminAccount(), adminRateLimit("media.delete", "write"), async (ctx) => {
 		const actor = ctx.get("creator").username;
 		const id = ctx.params.id ?? "";
 		assertValid(id, isUuidValid, ErrorCode.INVALID_IMAGE_NAME);
