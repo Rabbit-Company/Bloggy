@@ -31,6 +31,12 @@ export function customDomainContext(): AppMiddleware {
 	return async (ctx, next) => {
 		const url = new URL(ctx.req.url);
 		const hostname = url.hostname.toLowerCase();
+
+		if (url.pathname === "/health") {
+			ctx.set("customDomain", null);
+			return await next();
+		}
+
 		if (hostname === primary) {
 			ctx.set("customDomain", null);
 			return await next();

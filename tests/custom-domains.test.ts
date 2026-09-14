@@ -102,6 +102,12 @@ describe("custom domain hostnames", () => {
 		expect(normalizeCustomHostname("127.0.0.1")).toBeNull();
 	});
 
+	test("serves health checks addressed directly to the private origin", async () => {
+		const response = await createApp().handle(new Request("http://127.0.0.1:3000/health"));
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ status: "ok", database: config.database.dialect });
+	});
+
 	test("recognizes BurrowGate's active certificate response", async () => {
 		const originalFetch = globalThis.fetch;
 		const originalUrl = config.burrowgate.url;
