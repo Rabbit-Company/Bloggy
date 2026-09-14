@@ -17,12 +17,13 @@ import { listPostsByCreator } from "../db/posts.ts";
 import { findActiveCustomDomainByUsername } from "../db/custom-domains.ts";
 import type { AppState } from "../types.ts";
 import { accountRateLimit } from "../middleware/account-rate-limit.ts";
+import { isSlugValid } from "../lib/validation.ts";
 
 async function describePaths(username: string, rows: { label: string; value: number; detail?: string }[], base = `/creator/${username}`) {
 	const titles = new Map((await listPostsByCreator(username)).map((post) => [post.slug, post.title]));
 	const home = base || "/";
 
-	return rows.map((row) => {
+	return rows.flatMap((row) => {
 		if (row.label === home || (base.length > 0 && row.label === `${base}/`)) return { ...row, label: "Blog home", detail: home };
 
 		const rest =
@@ -30,6 +31,7 @@ async function describePaths(username: string, rows: { label: string; value: num
 		if (rest === null) return row;
 
 		if (rest.startsWith("feed.")) return { ...row, label: `${rest.slice(5).toUpperCase()} feed`, detail: row.label };
+		if (base.length === 0 && !isSlugValid(rest)) return [];
 
 		const title = titles.get(rest);
 		return title === undefined ? { ...row, label: rest, detail: "No longer published" } : { ...row, label: title, detail: `/${rest}` };

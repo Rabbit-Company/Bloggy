@@ -406,6 +406,10 @@ describe("custom domain hostnames", () => {
 						path === null
 							? [
 									{ label: "/", value: 4 },
+									{ label: `/media/avatars/${USER}`, value: 12 },
+									{ label: `/media/images/${USER}/${PICTURE}`, value: 8 },
+									{ label: "/assets/blog-example.css", value: 5 },
+									{ label: "/robots.txt", value: 2 },
 									{ label: "/first-story", value: 3 },
 								]
 							: [],
