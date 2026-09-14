@@ -281,7 +281,9 @@ BURROWGATE_CUSTOM_DOMAIN_ORIGIN=http://127.0.0.1:3000
 BURROWGATE_ACME_EMAIL=admin@example.com
 ```
 
-The Cloudflare token only needs custom-hostname access to that zone. The BurrowGate token needs permission to create and remove sites and manage their certificates. Do not reuse the read-only monitoring token.
+Create a custom Cloudflare API token with the zone-level **SSL and Certificates Edit** permission. Cloudflare may display this permission as **SSL and Certificates Write**. Scope the token to **Include**, **Specific zone**, then select the SaaS zone such as `bloggy.io`. Bloggy does not need Cloudflare DNS, Workers, Zone Edit, or account-level permissions.
+
+The BurrowGate token needs permission to create and remove sites and manage their certificates. Do not reuse the read-only monitoring token.
 
 For the hosted Cloudflare setup:
 

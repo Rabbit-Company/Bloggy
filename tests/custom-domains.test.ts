@@ -181,6 +181,7 @@ describe("custom domain hostnames", () => {
 				if (url.endsWith("/_burrowgate/api/admin/sites") && method === "POST") {
 					const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
 					expect(body).toMatchObject({ publicHost: HOSTNAME, originUrl: "http://127.0.0.1:3000", ipExtractionPreset: "cloudflare" });
+					expect(body).not.toHaveProperty("challengePolicy");
 					return Response.json({ site: { id: "burrowgate-site-1" } });
 				}
 				if (url.endsWith("/sites/burrowgate-site-1/tls")) {

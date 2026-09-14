@@ -163,7 +163,6 @@ export async function createBurrowGateSite(hostname: string, behindCloudflare = 
 				originUrl: config.customDomains.burrowgate.originUrl,
 				enabled: true,
 				defaultAccessMode: "bypass",
-				challengePolicy: [],
 				ipExtractionPreset: behindCloudflare ? "cloudflare" : "direct",
 			}),
 		},
