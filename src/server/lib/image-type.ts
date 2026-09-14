@@ -1,3 +1,5 @@
+import { detectAvifType } from "../../shared/image-formats.ts";
+
 /**
  * Recovers an image's type from its first bytes.
  *
@@ -21,6 +23,8 @@ export function detectImageType(head: Uint8Array): string | null {
 	if (starts(0x47, 0x49, 0x46, 0x38)) return "image/gif";
 	// RIFF....WEBP
 	if (starts(0x52, 0x49, 0x46, 0x46) && head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50) return "image/webp";
+	const avif = detectAvifType(head);
+	if (avif !== null) return avif;
 
 	const text = new TextDecoder().decode(head.slice(0, 128)).trimStart().toLowerCase();
 	if (text.startsWith("<svg") || text.startsWith("<?xml")) return "image/svg+xml";

@@ -23,8 +23,11 @@ export const SOCIAL_LABELS: Record<string, string> = Object.fromEntries(SOCIAL_P
 
 export const IMAGE_EXTENSIONS: Record<string, string> = {
 	"image/png": "png",
+	"image/apng": "apng",
 	"image/jpeg": "jpg",
 	"image/gif": "gif",
 	"image/svg+xml": "svg",
 	"image/webp": "webp",
+	"image/avif": "avif",
+	"image/avif-sequence": "avifs",
 };

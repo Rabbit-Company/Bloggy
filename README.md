@@ -125,6 +125,8 @@ Avatars and post images go to the local filesystem by default. Set `STORAGE_DRIV
 
 `MAX_AVATAR_SIZE` and `MAX_IMAGE_SIZE` bound a single upload. `MAX_ACCOUNT_STORAGE` bounds the total per account, so one creator cannot fill the volume a megabyte at a time. Set it to `0` to allow unlimited storage.
 
+PNG, JPEG, GIF, SVG, WebP and AVIF uploads are supported. Animated GIF, WebP, AVIF and PNG files keep their original animation and must fit within the configured single-upload limit without browser compression.
+
 ## Authentication
 
 Owners and collaborators sign in against an argon2id hash (`Bun.password`). A session then travels two ways:

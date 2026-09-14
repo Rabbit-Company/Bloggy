@@ -86,7 +86,7 @@ export async function renderImages(root: HTMLElement): Promise<void> {
 		"div",
 		{ class: "dropzone", role: "button", tabindex: "0" },
 		el("p", { style: "margin:0 0 .25rem;font-weight:600" }, "Drop images here, or click to choose"),
-		el("p", { style: "margin:0;font-size:.85rem" }, "Resized and converted to WebP in your browser before upload."),
+		el("p", { style: "margin:0;font-size:.85rem" }, "Static images are optimized before upload. Animated images keep their original format."),
 	);
 
 	async function upload(files: FileList | File[]): Promise<void> {

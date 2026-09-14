@@ -43,7 +43,7 @@ const messages: Record<ErrorCode, string> = {
 	[ErrorCode.FILE_TOO_LARGE]: "The uploaded file is too large.",
 	[ErrorCode.INVALID_IMAGE_NAME]: "Image name is invalid.",
 	[ErrorCode.MISSING_CONTENT_TYPE]: "Content-Type header needs to be provided.",
-	[ErrorCode.UNSUPPORTED_FILE_TYPE]: "File type is not supported. Please upload .png, .jpg, .gif, .svg or .webp",
+	[ErrorCode.UNSUPPORTED_FILE_TYPE]: "File type is not supported. Please upload .png, .apng, .jpg, .gif, .svg, .webp or .avif",
 	[ErrorCode.INVALID_SOCIAL]: "Social media is invalid.",
 
 	[ErrorCode.REGISTRATION_DISABLED]: "Registration is disabled on this instance.",

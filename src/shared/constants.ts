@@ -135,7 +135,16 @@ export const TEAM_ROLES = ["writer", "editor", "publisher"] as const;
 
 export type TeamRole = (typeof TEAM_ROLES)[number];
 
-export const SUPPORTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/svg+xml", "image/webp"] as const;
+export const SUPPORTED_IMAGE_TYPES = [
+	"image/png",
+	"image/apng",
+	"image/jpeg",
+	"image/gif",
+	"image/svg+xml",
+	"image/webp",
+	"image/avif",
+	"image/avif-sequence",
+] as const;
 
 /** Average adult reading speed, used to estimate a post's read time. */
 export const WORDS_PER_MINUTE = 200;

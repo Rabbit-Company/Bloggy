@@ -1,3 +1,5 @@
+import { imageHasAnimation } from "../shared/image-formats.ts";
+
 type Attributes = Record<string, string | number | boolean | EventListener | undefined>;
 export type Child = Node | string | null | undefined | false;
 
@@ -230,6 +232,14 @@ export interface CompressOptions {
 export async function compressImage(file: File, options: CompressOptions): Promise<Blob> {
 	if (file.type === "image/svg+xml") {
 		if (file.size > options.maxBytes) throw new Error("This SVG is too large. Please choose a smaller file.");
+		return file;
+	}
+	if (["image/gif", "image/apng", "image/avif", "image/avif-sequence"].includes(file.type)) {
+		if (file.size > options.maxBytes) throw new Error("This image is too large. Animated images must fit the upload limit without compression.");
+		return file;
+	}
+	if (["image/png", "image/webp"].includes(file.type) && imageHasAnimation(file.type, new Uint8Array(await file.arrayBuffer()))) {
+		if (file.size > options.maxBytes) throw new Error("This image is too large. Animated images must fit the upload limit without compression.");
 		return file;
 	}
 
