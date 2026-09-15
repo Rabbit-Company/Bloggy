@@ -374,6 +374,17 @@ export function migrations(d: DatabaseDialect): Migration[] {
 )`,
 			],
 		},
+		{
+			name: "0012_embed_post_metadata",
+			statements: [
+				`ALTER TABLE creator_embeds ADD COLUMN show_date ${integer(d)} NOT NULL DEFAULT 0`,
+				`ALTER TABLE creator_embeds ADD COLUMN show_read_time ${integer(d)} NOT NULL DEFAULT 0`,
+			],
+		},
+		{
+			name: "0013_embed_date_format",
+			statements: [`ALTER TABLE creator_embeds ADD COLUMN date_format ${varchar(d, 20)} NOT NULL DEFAULT 'iso'`],
+		},
 	];
 }
 

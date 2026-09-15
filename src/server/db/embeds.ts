@@ -11,6 +11,9 @@ interface EmbedRow {
 	show_search: number;
 	show_social: number;
 	show_author: number;
+	show_date: number;
+	show_read_time: number;
+	date_format: EmbedCustomizationInput["dateFormat"];
 	show_post_descriptions: number;
 	show_share: number;
 	custom_css: string;
@@ -27,6 +30,9 @@ export async function findEmbedCustomization(username: string): Promise<EmbedCus
 		showSearch: Number(row.show_search) === 1,
 		showSocial: Number(row.show_social) === 1,
 		showAuthor: Number(row.show_author) === 1,
+		showDate: Number(row.show_date) === 1,
+		showReadTime: Number(row.show_read_time) === 1,
+		dateFormat: row.date_format,
 		showPostDescriptions: Number(row.show_post_descriptions) === 1,
 		showShare: Number(row.show_share) === 1,
 		customCss: row.custom_css,
@@ -41,21 +47,26 @@ export async function saveEmbedCustomization(username: string, value: EmbedCusto
 	const search = Number(value.showSearch);
 	const social = Number(value.showSocial);
 	const author = Number(value.showAuthor);
+	const date = Number(value.showDate);
+	const readTime = Number(value.showReadTime);
 	const postDescriptions = Number(value.showPostDescriptions);
 	const share = Number(value.showShare);
 	if (isMysqlFamily) {
-		await sql`INSERT INTO creator_embeds (username, show_title, show_description, show_search, show_social, show_author, show_post_descriptions, show_share, custom_css, updated_at)
-			VALUES (${username}, ${title}, ${description}, ${search}, ${social}, ${author}, ${postDescriptions}, ${share}, ${value.customCss}, ${timestamp})
+		await sql`INSERT INTO creator_embeds (username, show_title, show_description, show_search, show_social, show_author, show_date, show_read_time, date_format, show_post_descriptions, show_share, custom_css, updated_at)
+			VALUES (${username}, ${title}, ${description}, ${search}, ${social}, ${author}, ${date}, ${readTime}, ${value.dateFormat}, ${postDescriptions}, ${share}, ${value.customCss}, ${timestamp})
 			ON DUPLICATE KEY UPDATE
 				show_title = ${title}, show_description = ${description}, show_search = ${search}, show_social = ${social},
-				show_author = ${author}, show_post_descriptions = ${postDescriptions}, show_share = ${share},
+				show_author = ${author}, show_date = ${date}, show_read_time = ${readTime}, date_format = ${value.dateFormat},
+				show_post_descriptions = ${postDescriptions}, show_share = ${share},
 				custom_css = ${value.customCss}, updated_at = ${timestamp}`;
 	} else {
-		await sql`INSERT INTO creator_embeds (username, show_title, show_description, show_search, show_social, show_author, show_post_descriptions, show_share, custom_css, updated_at)
-			VALUES (${username}, ${title}, ${description}, ${search}, ${social}, ${author}, ${postDescriptions}, ${share}, ${value.customCss}, ${timestamp})
+		await sql`INSERT INTO creator_embeds (username, show_title, show_description, show_search, show_social, show_author, show_date, show_read_time, date_format, show_post_descriptions, show_share, custom_css, updated_at)
+			VALUES (${username}, ${title}, ${description}, ${search}, ${social}, ${author}, ${date}, ${readTime}, ${value.dateFormat}, ${postDescriptions}, ${share}, ${value.customCss}, ${timestamp})
 			ON CONFLICT (username) DO UPDATE SET
 				show_title = excluded.show_title, show_description = excluded.show_description, show_search = excluded.show_search,
 				show_social = excluded.show_social, show_author = excluded.show_author,
+				show_date = excluded.show_date, show_read_time = excluded.show_read_time,
+				date_format = excluded.date_format,
 				show_post_descriptions = excluded.show_post_descriptions, show_share = excluded.show_share,
 				custom_css = excluded.custom_css, updated_at = excluded.updated_at`;
 	}

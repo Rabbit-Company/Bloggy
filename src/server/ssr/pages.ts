@@ -3,7 +3,7 @@ import { avatarUrl, pictureUrl } from "../lib/storage.ts";
 import { parseSocial, parseThemeColors, type CreatorRow } from "../db/creators.ts";
 import { EMPTY_CUSTOMIZATION, type CreatorCustomization } from "../db/customizations.ts";
 import type { EmbedCustomization } from "../db/embeds.ts";
-import { DEFAULT_EMBED_CUSTOMIZATION } from "../../shared/embed.ts";
+import { DEFAULT_EMBED_CUSTOMIZATION, formatEmbedDate } from "../../shared/embed.ts";
 import type { PostFilter, PostRow, PostSummaryRow } from "../db/posts.ts";
 import { escapeHtml } from "./markdown.ts";
 import { renderMarkdown } from "./markdown.ts";
@@ -490,6 +490,16 @@ ${share}
 }
 
 /** A small, independent public view for sites that frame a creator's posts. */
+function renderEmbedPostMeta(creator: CreatorRow, post: PostSummaryRow, embed: EmbedCustomization, className: string): string {
+	const date = post.published_at ?? post.created_at;
+	const parts = [
+		embed.showAuthor ? `<span class="embed-author">${escapeHtml(creator.author)}</span>` : "",
+		embed.showDate ? `<time datetime="${escapeHtml(date)}">${escapeHtml(formatEmbedDate(date, embed.dateFormat))}</time>` : "",
+		embed.showReadTime ? `<span class="embed-read-time">${post.read_time} min read</span>` : "",
+	].filter(Boolean);
+	return parts.length ? `<div class="${className}">${parts.join('<span class="embed-meta-separator" aria-hidden="true">·</span>')}</div>` : "";
+}
+
 export function renderEmbedCreatorPage(
 	creator: CreatorRow,
 	posts: PostSummaryRow[],
@@ -514,7 +524,7 @@ export function renderEmbedCreatorPage(
 	<div class="embed-card-body">
 		<h2><a href="${escapeHtml(href)}">${escapeHtml(post.title)}</a></h2>
 		${embed.showPostDescriptions ? `<p>${escapeHtml(post.description)}</p>` : ""}
-		${embed.showAuthor ? `<span class="embed-author">${escapeHtml(creator.author)}</span>` : ""}
+		${renderEmbedPostMeta(creator, post, embed, "embed-meta")}
 	</div>
 </article>`;
 		})
@@ -554,9 +564,7 @@ export function renderEmbedPostPage(
 	const home = homePath(embedPageLocation(creator.username, location));
 	const url = postUrl(creator.username, post.slug, location);
 	const content = publicMediaUrl(renderMarkdown(post.markdown), location);
-	const byline = embed.showAuthor
-		? `<div class="embed-byline">${escapeHtml(creator.author)} <time datetime="${escapeHtml(post.published_at ?? post.created_at)}">${escapeHtml(formatDate(post.published_at ?? post.created_at))}</time></div>`
-		: "";
+	const byline = renderEmbedPostMeta(creator, post, embed, "embed-byline");
 	const share = embed.showShare
 		? `<a class="embed-share" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(`${post.title}\n\n${url}`)}" target="_blank" rel="noopener">Share post</a>`
 		: "";

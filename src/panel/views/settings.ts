@@ -12,7 +12,7 @@ import {
 import { CATEGORIES, DEFAULT_THEME_COLORS, LANGUAGES, SOCIAL_PLATFORMS, THEMES, instanceConfig } from "../constants.ts";
 import { HOME_STARTER_TEMPLATE, HOME_TEMPLATE_COMPONENTS, POST_STARTER_TEMPLATE, POST_TEMPLATE_COMPONENTS } from "../../shared/customization.ts";
 import type { ThemeColors } from "../../shared/constants.ts";
-import { DEFAULT_EMBED_CUSTOMIZATION, type EmbedCustomizationInput } from "../../shared/embed.ts";
+import { DEFAULT_EMBED_CUSTOMIZATION, EMBED_DATE_FORMATS, type EmbedCustomizationInput, type EmbedDateFormat } from "../../shared/embed.ts";
 import { clearSession, setCreator } from "../session.ts";
 import { compressImage, confirm, el, field, formatBytes, formatDateTime, modal, render, setHtml, toast } from "../ui.ts";
 import { navigate } from "../router.ts";
@@ -438,19 +438,22 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 		placeholder: ".custom-home {\n  max-width: 72rem;\n  margin: 0 auto;\n}",
 	});
 	customCss.value = customization.customCss;
-	const embedOptions: { key: Exclude<keyof EmbedCustomizationInput, "customCss">; label: string }[] = [
+	const embedOptions: { key: Exclude<keyof EmbedCustomizationInput, "customCss" | "dateFormat">; label: string }[] = [
 		{ key: "showTitle", label: "Blog title" },
 		{ key: "showDescription", label: "Blog description" },
 		{ key: "showSearch", label: "Search" },
 		{ key: "showSocial", label: "Social links" },
 		{ key: "showAuthor", label: "Author on cards and posts" },
+		{ key: "showDate", label: "Post date on cards and posts" },
+		{ key: "showReadTime", label: "Read time on cards and posts" },
 		{ key: "showPostDescriptions", label: "Post descriptions on cards" },
 		{ key: "showShare", label: "Share link on posts" },
 	];
 	const embedInputs = Object.fromEntries(embedOptions.map(({ key }) => [key, el("input", { type: "checkbox", checked: embedCustomization[key] })])) as Record<
-		Exclude<keyof EmbedCustomizationInput, "customCss">,
+		Exclude<keyof EmbedCustomizationInput, "customCss" | "dateFormat">,
 		HTMLInputElement
 	>;
+	const embedDateFormat = select("embed-date-format", EMBED_DATE_FORMATS, embedCustomization.dateFormat);
 	const embedCss = el("textarea", {
 		id: "embed-css",
 		class: "code customization-editor css-editor",
@@ -487,6 +490,9 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 				showSearch: embedInputs.showSearch.checked,
 				showSocial: embedInputs.showSocial.checked,
 				showAuthor: embedInputs.showAuthor.checked,
+				showDate: embedInputs.showDate.checked,
+				showReadTime: embedInputs.showReadTime.checked,
+				dateFormat: embedDateFormat.value as EmbedDateFormat,
 				showPostDescriptions: embedInputs.showPostDescriptions.checked,
 				showShare: embedInputs.showShare.checked,
 				customCss: embedCss.value,
@@ -749,40 +755,6 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 				el("div", { class: "actions" }, saveSettings),
 			),
 
-		isOwner && premiumLicenses(entitlements, reload),
-
-		isOwner && customDomainCard(customDomain, reload),
-
-		isOwner &&
-			el(
-				"div",
-				{ class: "card embed-card-settings" },
-				el("h2", {}, "Embed design"),
-				el("p", { class: "hint" }, "Use this separate view in an iframe. It shows only posts by default and gives every post a back link."),
-				el(
-					"div",
-					{ class: "embed-options" },
-					...embedOptions.map(({ key, label }) =>
-						el(
-							"label",
-							{ class: "embed-option" },
-							embedInputs[key],
-							el("span", { class: "embed-option-switch", "aria-hidden": "true" }),
-							el("span", {}, label),
-						),
-					),
-				),
-				labelled("Embed-only CSS", embedCss, "This CSS affects only the iframe view. It loads after Bloggy's embed styles."),
-				el("div", { class: "actions" }, saveEmbed, el("a", { class: "button ghost", href: embedUrl, target: "_blank", rel: "noopener" }, "Preview embed")),
-				el(
-					"div",
-					{ class: "embed-code" },
-					el("p", { class: "hint" }, "Paste this code into your website. Set its height to suit your posts."),
-					embedSnippet,
-					el("div", { class: "actions" }, copyEmbed),
-				),
-			),
-
 		isOwner &&
 			el(
 				"div",
@@ -806,6 +778,41 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 				el("p", { class: "hint" }, "Shown under your blog's title. Leave a field empty to hide it."),
 				el("div", { class: "row" }, ...socialInputs.map(({ platform, input }) => labelled(platform.label, input))),
 				el("div", { class: "actions" }, saveSocial),
+			),
+
+		isOwner && premiumLicenses(entitlements, reload),
+
+		isOwner && customDomainCard(customDomain, reload),
+
+		isOwner &&
+			el(
+				"div",
+				{ class: "card embed-card-settings" },
+				el("h2", {}, "Embed design"),
+				el("p", { class: "hint" }, "Use this separate view in an iframe. It shows only posts by default and gives every post a back link."),
+				el(
+					"div",
+					{ class: "embed-options" },
+					...embedOptions.map(({ key, label }) =>
+						el(
+							"label",
+							{ class: "embed-option" },
+							embedInputs[key],
+							el("span", { class: "embed-option-switch", "aria-hidden": "true" }),
+							el("span", {}, label),
+						),
+					),
+				),
+				labelled("Date format", embedDateFormat, "Used on cards and posts when Post date is enabled."),
+				labelled("Embed-only CSS", embedCss, "This CSS affects only the iframe view. It loads after Bloggy's embed styles."),
+				el("div", { class: "actions" }, saveEmbed, el("a", { class: "button ghost", href: embedUrl, target: "_blank", rel: "noopener" }, "Preview embed")),
+				el(
+					"div",
+					{ class: "embed-code" },
+					el("p", { class: "hint" }, "Paste this code into your website. Set its height to suit your posts."),
+					embedSnippet,
+					el("div", { class: "actions" }, copyEmbed),
+				),
 			),
 
 		isOwner &&

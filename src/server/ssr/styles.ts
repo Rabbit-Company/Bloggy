@@ -301,13 +301,19 @@ html[data-embed] { --bg: transparent; --surface: transparent; --shadow: none; }
 .embed-header .social { justify-content: flex-start; }
 .embed-wrap .search { margin-bottom: 1.25rem; font-size: 1rem; }
 .embed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
-.embed-card { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.embed-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
+.embed-card:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .embed-cover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
 .embed-card-body { padding: 0.9rem; }
 .embed-card h2 { margin: 0; font-size: 1.08rem; line-height: 1.35; }
 .embed-card h2 a { color: var(--text); }
+/* The title link fills its card without changing the markup custom CSS targets. */
+.embed-card h2 a::after { position: absolute; inset: 0; content: ""; }
 .embed-card p { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.92rem; }
-.embed-author { display: block; margin-top: 0.6rem; color: var(--muted); font-size: 0.85rem; }
+.embed-meta, .embed-byline { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.4rem; color: var(--muted); font-size: 0.85rem; }
+.embed-meta { margin-top: 0.6rem; }
+.embed-author { color: inherit; }
+.embed-meta-separator { color: var(--muted); }
 .embed-empty { margin: 2rem 0; color: var(--muted); text-align: center; }
 .embed-pagination { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; }
 .embed-pagination a { padding: 0.45rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); }
@@ -315,8 +321,7 @@ html[data-embed] { --bg: transparent; --surface: transparent; --shadow: none; }
 .embed-back { display: inline-block; margin-bottom: 1.25rem; font-weight: 650; }
 .embed-post { max-width: 56rem; margin-inline: auto; font-size: 1.05rem; }
 .embed-post h1 { margin-bottom: 1rem; }
-.embed-byline { margin-bottom: 1rem; color: var(--muted); font-size: 0.9rem; }
-.embed-byline time { margin-left: 0.4rem; }
+.embed-byline { margin-bottom: 1rem; font-size: 0.9rem; }
 .embed-share { display: inline-block; margin-top: 1.5rem; }
 
 .hidden { display: none !important; }

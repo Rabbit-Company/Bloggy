@@ -363,7 +363,7 @@ Advanced HTML is sanitized on the server. Scripts, forms, embedded pages, event 
 
 ### Embedding a blog
 
-Settings also has a separate **Embed design** section. Its iframe view shows published post cards without blog headers, author names, descriptions, search, social links or share links by default. Owners can turn those elements on individually and add embed-only CSS without changing the normal blog. Each embedded post has a **Back to posts** link that stays inside the iframe. The panel provides a preview URL and iframe code to copy.
+Settings also has a separate **Embed design** section. Its iframe view shows published post cards without blog headers, author names, post dates, read times, descriptions, search, social links or share links by default. Owners can turn those elements on individually and add embed-only CSS without changing the normal blog. Post dates use the publication date when available, or the creation date otherwise. The Date format dropdown offers ISO, short, long, day-first and English ordinal dates, and defaults to ISO for existing embeds. Each embedded post has a **Back to posts** link that stays inside the iframe. The panel provides a preview URL and iframe code to copy.
 
 On the main Bloggy host the embed URL is `/creator/<username>/_embed`, with posts at `/creator/<username>/_embed/<slug>`. An active custom domain uses `/_embed` and `/_embed/<slug>`. Main-host embed links redirect to the active custom domain, just like regular blog links. Embed pages are public and frameable, but marked `noindex, nofollow`. The creator panel remains unframeable. Only published posts appear in an embed.
 

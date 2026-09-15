@@ -6,7 +6,8 @@ import { migrate } from "../src/server/db/migrate.ts";
 import { insertPost } from "../src/server/db/posts.ts";
 import { invalidateCreator } from "../src/server/middleware/cache.ts";
 import { createApp } from "../src/server/index.ts";
-import { DEFAULT_EMBED_CUSTOMIZATION } from "../src/shared/embed.ts";
+import { DEFAULT_EMBED_CUSTOMIZATION, formatEmbedDate } from "../src/shared/embed.ts";
+import { BLOG_CSS } from "../src/server/ssr/styles.ts";
 
 const USER = "embed-owner";
 const SLUG = "first-story";
@@ -93,10 +94,12 @@ describe("public iframe views", () => {
 		expect(html).toContain("data-embed");
 		expect(html).toContain('<meta name="robots" content="noindex">');
 		expect(html).toContain(`href="${BASE}/${SLUG}"`);
+		expect(BLOG_CSS).toContain('.embed-card h2 a::after { position: absolute; inset: 0; content: ""; }');
 		expect(html).not.toContain("private-draft");
 		expect(html).not.toContain("Embedded Author");
 		expect(html).not.toContain('class="search-form"');
 		expect(html).not.toContain('class="embed-header"');
+		expect(html).not.toContain('class="embed-meta"');
 		expect(html).not.toContain("A description for the card that can be hidden in the iframe view.");
 		const panel = await get("/panel");
 		expect(panel.headers.get("X-Frame-Options")).toBe("DENY");
@@ -109,6 +112,7 @@ describe("public iframe views", () => {
 		expect(html).toContain(`class="embed-back" href="${BASE}"`);
 		expect(html).toContain("This story is public and appears in the embedded post view.");
 		expect(html).not.toContain('class="byline"');
+		expect(html).not.toContain('class="embed-byline"');
 		expect(html).not.toContain('class="embed-share"');
 		expect((await get(`${BASE}/private-draft`)).status).toBe(404);
 	});
@@ -158,6 +162,8 @@ describe("embed customization API", () => {
 			showTitle: true,
 			showDescription: true,
 			showAuthor: true,
+			showDate: true,
+			showReadTime: true,
 			showSearch: true,
 			showSocial: true,
 			showPostDescriptions: true,
@@ -168,6 +174,8 @@ describe("embed customization API", () => {
 		const embed = await (await get(BASE)).text();
 		expect(embed).toContain('class="embed-header"');
 		expect(embed).toContain("Embedded Author");
+		expect(embed).toMatch(/class="embed-meta"[^>]*>.*<time datetime="[^"]+">[^<]+<\/time>/);
+		expect(embed).toContain('class="embed-read-time">1 min read</span>');
 		expect(embed).toContain('class="search-form"');
 		expect(embed).toContain("The description belongs to the ordinary blog");
 		expect(embed).toContain("A description for the card that can be hidden in the iframe view.");
@@ -175,6 +183,7 @@ describe("embed customization API", () => {
 		expect(embed).toContain(`<style data-creator-custom>${customCss}`);
 		const embeddedPost = await (await get(`${BASE}/${SLUG}`)).text();
 		expect(embeddedPost).toContain('class="embed-byline"');
+		expect(embeddedPost).toContain('class="embed-read-time">1 min read</span>');
 		expect(embeddedPost).toContain('class="embed-share"');
 		const regular = await (await get(`/creator/${USER}`)).text();
 		expect(regular).not.toContain(".embed-card { border: 0; }");
@@ -184,9 +193,79 @@ describe("embed customization API", () => {
 		expect(restored).not.toContain(customCss);
 	});
 
+	test("lets date and read time be displayed independently of the author", async () => {
+		const { token } = await createSession(USER);
+		const dateOnly = await ownerRequest("/api/v1/creators/me/embed", token, {
+			...DEFAULT_EMBED_CUSTOMIZATION,
+			showDate: true,
+		});
+		expect(dateOnly.status).toBe(200);
+		const cards = await (await get(BASE)).text();
+		expect(cards).toContain('class="embed-meta"');
+		expect(cards).toContain('<time datetime="');
+		expect(cards).not.toContain('class="embed-read-time"');
+		expect(cards).not.toContain("Embedded Author");
+		const post = await (await get(`${BASE}/${SLUG}`)).text();
+		expect(post).toContain('class="embed-byline"');
+		expect(post).toContain('<time datetime="');
+		expect(post).not.toContain('class="embed-read-time"');
+		const readTimeOnly = await ownerRequest("/api/v1/creators/me/embed", token, {
+			...DEFAULT_EMBED_CUSTOMIZATION,
+			showReadTime: true,
+		});
+		expect(readTimeOnly.status).toBe(200);
+		const updatedCards = await (await get(BASE)).text();
+		expect(updatedCards).toContain('class="embed-read-time">1 min read</span>');
+		expect(updatedCards).not.toContain('<time datetime="');
+	});
+
+	test("saves the chosen date format and renders it on cards and posts", async () => {
+		const { token } = await createSession(USER);
+		const publishedAt = "2026-04-29T00:00:00.000Z";
+		await sql`UPDATE posts SET published_at = ${publishedAt} WHERE username = ${USER} AND slug = ${SLUG}`;
+		invalidateCreator(USER);
+		const saved = await ownerRequest("/api/v1/creators/me/embed", token, {
+			...DEFAULT_EMBED_CUSTOMIZATION,
+			showDate: true,
+			dateFormat: "ordinal",
+		});
+		expect(saved.status).toBe(200);
+		expect((await saved.json()).data.dateFormat).toBe("ordinal");
+		const stored = await ownerRequest("/api/v1/creators/me/embed", token);
+		expect((await stored.json()).data.dateFormat).toBe("ordinal");
+		for (const path of [BASE, `${BASE}/${SLUG}`]) {
+			const html = await (await get(path)).text();
+			expect(html).toContain(`<time datetime="${publishedAt}">April 29th 2026</time>`);
+		}
+	});
+
+	test("formats every preset and ordinal edge days", () => {
+		const date = "2026-04-29T00:00:00.000Z";
+		expect(formatEmbedDate(date, "iso")).toBe("2026-04-29");
+		expect(formatEmbedDate(date, "short")).toBe("Apr 29, 2026");
+		expect(formatEmbedDate(date, "long")).toBe("April 29, 2026");
+		expect(formatEmbedDate(date, "day-first")).toBe("29 April 2026");
+		expect(formatEmbedDate(date, "ordinal")).toBe("April 29th 2026");
+		for (const [day, suffix] of [
+			[1, "st"],
+			[2, "nd"],
+			[3, "rd"],
+			[11, "th"],
+			[12, "th"],
+			[13, "th"],
+			[21, "st"],
+			[22, "nd"],
+			[23, "rd"],
+		] as const) {
+			expect(formatEmbedDate(`2026-04-${String(day).padStart(2, "0")}`, "ordinal")).toBe(`April ${day}${suffix} 2026`);
+		}
+	});
+
 	test("rejects invalid options and oversized CSS", async () => {
 		const { token } = await createSession(USER);
 		expect((await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, showSearch: "yes" })).status).toBe(400);
+		expect((await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, showReadTime: "yes" })).status).toBe(400);
+		expect((await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, dateFormat: "relative" })).status).toBe(400);
 		expect((await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, customCss: "x".repeat(50_001) })).status).toBe(400);
 	});
 });
