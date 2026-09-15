@@ -438,7 +438,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 		placeholder: ".custom-home {\n  max-width: 72rem;\n  margin: 0 auto;\n}",
 	});
 	customCss.value = customization.customCss;
-	const embedOptions: { key: Exclude<keyof EmbedCustomizationInput, "customCss" | "dateFormat">; label: string }[] = [
+	const embedOptions: { key: Exclude<keyof EmbedCustomizationInput, "customCss" | "dateFormat" | "postsPerRow">; label: string }[] = [
 		{ key: "showTitle", label: "Blog title" },
 		{ key: "showDescription", label: "Blog description" },
 		{ key: "showSearch", label: "Search" },
@@ -450,10 +450,18 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 		{ key: "showShare", label: "Share link on posts" },
 	];
 	const embedInputs = Object.fromEntries(embedOptions.map(({ key }) => [key, el("input", { type: "checkbox", checked: embedCustomization[key] })])) as Record<
-		Exclude<keyof EmbedCustomizationInput, "customCss" | "dateFormat">,
+		Exclude<keyof EmbedCustomizationInput, "customCss" | "dateFormat" | "postsPerRow">,
 		HTMLInputElement
 	>;
 	const embedDateFormat = select("embed-date-format", EMBED_DATE_FORMATS, embedCustomization.dateFormat);
+	const embedPostsPerRow = el("input", {
+		id: "embed-posts-per-row",
+		type: "number",
+		min: "0",
+		max: "100",
+		step: "1",
+		value: String(embedCustomization.postsPerRow),
+	}) as HTMLInputElement;
 	const embedCss = el("textarea", {
 		id: "embed-css",
 		class: "code customization-editor css-editor",
@@ -482,6 +490,11 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 	});
 	const saveEmbed = el("button", { class: "button primary" }, "Save embed design");
 	saveEmbed.addEventListener("click", async () => {
+		const postsPerRow = Number(embedPostsPerRow.value);
+		if (embedPostsPerRow.value === "" || !Number.isInteger(postsPerRow) || postsPerRow < 0 || postsPerRow > 100) {
+			toast("Posts per row must be a whole number from 0 to 100. Use 0 for Auto.", "error");
+			return;
+		}
 		saveEmbed.disabled = true;
 		try {
 			await api.updateEmbedCustomization({
@@ -493,6 +506,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 				showDate: embedInputs.showDate.checked,
 				showReadTime: embedInputs.showReadTime.checked,
 				dateFormat: embedDateFormat.value as EmbedDateFormat,
+				postsPerRow,
 				showPostDescriptions: embedInputs.showPostDescriptions.checked,
 				showShare: embedInputs.showShare.checked,
 				customCss: embedCss.value,
@@ -804,6 +818,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 					),
 				),
 				labelled("Date format", embedDateFormat, "Used on cards and posts when Post date is enabled."),
+				labelled("Posts per row", embedPostsPerRow, "0 means Auto. Positive numbers set the maximum columns. Narrow embeds show fewer."),
 				labelled("Embed-only CSS", embedCss, "This CSS affects only the iframe view. It loads after Bloggy's embed styles."),
 				el("div", { class: "actions" }, saveEmbed, el("a", { class: "button ghost", href: embedUrl, target: "_blank", rel: "noopener" }, "Preview embed")),
 				el(

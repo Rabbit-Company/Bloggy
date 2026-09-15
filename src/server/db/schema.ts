@@ -385,6 +385,10 @@ export function migrations(d: DatabaseDialect): Migration[] {
 			name: "0013_embed_date_format",
 			statements: [`ALTER TABLE creator_embeds ADD COLUMN date_format ${varchar(d, 20)} NOT NULL DEFAULT 'iso'`],
 		},
+		{
+			name: "0014_embed_posts_per_row",
+			statements: [`ALTER TABLE creator_embeds ADD COLUMN posts_per_row ${integer(d)} NOT NULL DEFAULT 0`],
+		},
 	];
 }
 

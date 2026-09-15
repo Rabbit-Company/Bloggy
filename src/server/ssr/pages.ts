@@ -529,11 +529,17 @@ export function renderEmbedCreatorPage(
 </article>`;
 		})
 		.join("\n");
-	const list = posts.length === 0 ? `<p class="embed-empty">${emptyMessage(filter)}</p>` : `<div class="embed-grid">${cards}</div>`;
+	const columns = embed.postsPerRow;
+	const columnShare = columns > 0 ? ` style="--embed-column-share:${(100 / columns).toFixed(6)}%"` : "";
+	const wrapWidth = columns > 0 ? ` data-posts-per-row="${columns}" style="--embed-wrap-max-width:${Math.min(columns * 32, 1000)}rem"` : "";
+	const list =
+		posts.length === 0
+			? `<p class="embed-empty">${emptyMessage(filter)}</p>`
+			: `<div class="embed-grid" data-posts-per-row="${columns}"${columnShare}>${cards}</div>`;
 	const previous = paging.page > 1 ? `<a rel="prev" href="${escapeHtml(home + listingQuery(filter, paging.page - 1))}">Previous</a>` : "";
 	const next = paging.page * paging.perPage < paging.total ? `<a rel="next" href="${escapeHtml(home + listingQuery(filter, paging.page + 1))}">Next</a>` : "";
 	const pagination = previous || next ? `<nav class="embed-pagination" aria-label="Posts pages">${previous}${next}</nav>` : "";
-	const body = `<main class="embed-wrap">${header}${search}${list}${pagination}</main>`;
+	const body = `<main class="embed-wrap"${wrapWidth}>${header}${search}${list}${pagination}</main>`;
 	return renderPage(
 		{
 			title: pageTitle(creator.title, filter, paging.page),

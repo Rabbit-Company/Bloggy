@@ -188,6 +188,9 @@ export function validateEmbedCustomization(input: unknown): EmbedCustomizationIn
 	if (!EMBED_DATE_FORMATS.some((format) => format.value === value.dateFormat)) {
 		throw new ApiError(ErrorCode.INVALID_CUSTOMIZATION, "Choose a supported embed date format.");
 	}
+	if (typeof value.postsPerRow !== "number" || !Number.isInteger(value.postsPerRow) || value.postsPerRow < 0 || value.postsPerRow > 100) {
+		throw new ApiError(ErrorCode.INVALID_CUSTOMIZATION, "Posts per row must be a whole number from 0 to 100. Use 0 for Auto.");
+	}
 	if (encoder.encode(value.customCss as string).byteLength > CUSTOM_CSS_MAX_BYTES) {
 		throw new ApiError(ErrorCode.INVALID_CUSTOMIZATION, `Embed CSS cannot be larger than ${CUSTOM_CSS_MAX_BYTES / 1000} kB.`);
 	}
@@ -200,6 +203,7 @@ export function validateEmbedCustomization(input: unknown): EmbedCustomizationIn
 		showDate: value.showDate as boolean,
 		showReadTime: value.showReadTime as boolean,
 		dateFormat: value.dateFormat as EmbedCustomizationInput["dateFormat"],
+		postsPerRow: value.postsPerRow as number,
 		showPostDescriptions: value.showPostDescriptions as boolean,
 		showShare: value.showShare as boolean,
 		customCss: (value.customCss as string).trim(),

@@ -35,6 +35,7 @@ export interface EmbedCustomizationInput {
 	showDate: boolean;
 	showReadTime: boolean;
 	dateFormat: EmbedDateFormat;
+	postsPerRow: number;
 	showPostDescriptions: boolean;
 	showShare: boolean;
 	customCss: string;
@@ -49,6 +50,7 @@ export const DEFAULT_EMBED_CUSTOMIZATION: EmbedCustomizationInput = {
 	showDate: false,
 	showReadTime: false,
 	dateFormat: "iso",
+	postsPerRow: 0,
 	showPostDescriptions: false,
 	showShare: false,
 	customCss: "",

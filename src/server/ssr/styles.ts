@@ -295,12 +295,14 @@ footer { border-top: 1px solid var(--border); margin-top: 4rem; padding: 2rem 0;
    creator and post pages keep their existing appearance. */
 html[data-embed] { --bg: transparent; --surface: transparent; --shadow: none; }
 .embed-wrap { width: 100%; max-width: 80rem; margin-inline: auto; padding: 1rem; }
+html[data-embed] .embed-wrap[data-posts-per-row] { max-width: var(--embed-wrap-max-width); }
 .embed-header { margin-bottom: 1.25rem; }
 .embed-header h1 { margin: 0; font-size: clamp(1.4rem, 4vw, 2rem); line-height: 1.2; }
 .embed-header p { margin: 0.25rem 0 0; color: var(--muted); }
 .embed-header .social { justify-content: flex-start; }
 .embed-wrap .search { margin-bottom: 1.25rem; font-size: 1rem; }
 .embed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
+html[data-embed] .embed-grid[data-posts-per-row]:not([data-posts-per-row="0"]) { grid-template-columns: repeat(auto-fill, minmax(min(100%, max(16rem, calc(var(--embed-column-share) - 2rem))), 1fr)); }
 .embed-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
 .embed-card:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .embed-cover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
@@ -323,6 +325,11 @@ html[data-embed] { --bg: transparent; --surface: transparent; --shadow: none; }
 .embed-post h1 { margin-bottom: 1rem; }
 .embed-byline { margin-bottom: 1rem; font-size: 0.9rem; }
 .embed-share { display: inline-block; margin-top: 1.5rem; }
+
+@media (max-width: 767px) {
+	.embed-grid { grid-template-columns: 1fr; }
+	html[data-embed] .embed-grid[data-posts-per-row]:not([data-posts-per-row="0"]) { grid-template-columns: 1fr; }
+}
 
 .hidden { display: none !important; }
 

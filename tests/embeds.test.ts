@@ -94,6 +94,7 @@ describe("public iframe views", () => {
 		expect(html).toContain("data-embed");
 		expect(html).toContain('<meta name="robots" content="noindex">');
 		expect(html).toContain(`href="${BASE}/${SLUG}"`);
+		expect(html).toContain('data-posts-per-row="0"');
 		expect(BLOG_CSS).toContain('.embed-card h2 a::after { position: absolute; inset: 0; content: ""; }');
 		expect(html).not.toContain("private-draft");
 		expect(html).not.toContain("Embedded Author");
@@ -239,6 +240,28 @@ describe("embed customization API", () => {
 		}
 	});
 
+	test("saves a maximum posts-per-row value and restores Auto", async () => {
+		const { token } = await createSession(USER);
+		const saved = await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, postsPerRow: 8 });
+		expect(saved.status).toBe(200);
+		expect((await saved.json()).data.postsPerRow).toBe(8);
+		const stored = await ownerRequest("/api/v1/creators/me/embed", token);
+		expect((await stored.json()).data.postsPerRow).toBe(8);
+		const html = await (await get(BASE)).text();
+		expect(html).toContain('class="embed-wrap" data-posts-per-row="8" style="--embed-wrap-max-width:256rem"');
+		expect(html).toContain('data-posts-per-row="8" style="--embed-column-share:12.500000%"');
+		expect(BLOG_CSS).toContain('html[data-embed] .embed-grid[data-posts-per-row]:not([data-posts-per-row="0"])');
+		expect((await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, postsPerRow: 1 })).status).toBe(200);
+		const singleColumn = await (await get(BASE)).text();
+		expect(singleColumn).toContain('class="embed-wrap" data-posts-per-row="1" style="--embed-wrap-max-width:32rem"');
+		expect(singleColumn).toContain('data-posts-per-row="1" style="--embed-column-share:100.000000%"');
+		expect((await ownerRequest("/api/v1/creators/me/embed", token, DEFAULT_EMBED_CUSTOMIZATION)).status).toBe(200);
+		const automatic = await (await get(BASE)).text();
+		expect(automatic).toContain('data-posts-per-row="0"');
+		expect(automatic).not.toContain("--embed-wrap-max-width:");
+		expect(automatic).not.toContain("--embed-column-share:");
+	});
+
 	test("formats every preset and ordinal edge days", () => {
 		const date = "2026-04-29T00:00:00.000Z";
 		expect(formatEmbedDate(date, "iso")).toBe("2026-04-29");
@@ -266,6 +289,9 @@ describe("embed customization API", () => {
 		expect((await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, showSearch: "yes" })).status).toBe(400);
 		expect((await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, showReadTime: "yes" })).status).toBe(400);
 		expect((await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, dateFormat: "relative" })).status).toBe(400);
+		for (const postsPerRow of [-1, 1.5, 101, "8", null]) {
+			expect((await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, postsPerRow })).status).toBe(400);
+		}
 		expect((await ownerRequest("/api/v1/creators/me/embed", token, { ...DEFAULT_EMBED_CUSTOMIZATION, customCss: "x".repeat(50_001) })).status).toBe(400);
 	});
 });
