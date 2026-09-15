@@ -86,11 +86,10 @@ function isDarkColor(hex: string): boolean {
 	return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue) < 0.18;
 }
 
-function creatorCss(creator: CreatorRow, customization: CreatorCustomization): string {
-	const custom = customization.customCss.trim();
-	if (creator.theme !== "custom") return custom;
+function creatorThemeCss(creator: CreatorRow): string {
+	if (creator.theme !== "custom") return "";
 	const colors = parseThemeColors(creator.theme_colors);
-	const theme = `[data-theme="custom"] {
+	return `[data-theme="custom"] {
 	color-scheme: ${isDarkColor(colors.background) ? "dark" : "light"};
 	--bg: ${colors.background};
 	--surface: ${colors.surface};
@@ -105,7 +104,6 @@ function creatorCss(creator: CreatorRow, customization: CreatorCustomization): s
 	--scroll-thumb-hover: ${colors.muted};
 	--shadow: 0 18px 50px color-mix(in srgb, ${colors.text} 10%, transparent);
 }`;
-	return custom.length === 0 ? theme : `${theme}\n${custom}`;
 }
 
 function topicUrl(topic?: string): string {
@@ -349,7 +347,8 @@ ${filterNote}${postList}${pagination}
 			author: creator.author,
 			twitterCreator: social.twitter,
 			theme: themeOf(creator),
-			customCss: creatorCss(creator, customization),
+			themeCss: creatorThemeCss(creator),
+			customCss: customization.customCss.trim(),
 			feeds: feedsFor(creator.username, location),
 			whiteLabel: location.whiteLabel,
 			noindex: filter.search !== undefined,
@@ -458,7 +457,8 @@ ${share}
 			tag: post.tag,
 			twitterCreator: social.twitter,
 			theme: themeOf(creator),
-			customCss: creatorCss(creator, customization),
+			themeCss: creatorThemeCss(creator),
+			customCss: customization.customCss.trim(),
 			feeds: feedsFor(creator.username, location),
 			whiteLabel: location.whiteLabel,
 			jsonLd: {

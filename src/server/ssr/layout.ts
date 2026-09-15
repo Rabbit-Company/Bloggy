@@ -29,6 +29,7 @@ export interface PageMeta {
 	twitterCreator?: string;
 	theme: string;
 	noindex?: boolean;
+	themeCss?: string;
 	customCss?: string;
 	whiteLabel?: boolean;
 }
@@ -92,6 +93,7 @@ ${article}
 <link rel="icon" href="${escapeHtml(meta.icon)}">
 ${feeds}
 <link rel="stylesheet" href="${BLOG_CSS_ASSET.path}">
+${meta.themeCss ? `<style data-creator-theme>${styleContent(meta.themeCss)}</style>` : ""}
 ${meta.customCss ? `<style data-creator-custom>${styleContent(meta.customCss)}</style>` : ""}
 ${meta.jsonLd === undefined ? "" : `<script type="application/ld+json">${escapeJson(meta.jsonLd)}</script>`}
 ${config.site.analytics}

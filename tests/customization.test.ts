@@ -132,6 +132,20 @@ describe("custom public pages", () => {
 		expect(html).toContain("No posts yet.");
 	});
 
+	test("keeps custom font imports at the top of their own stylesheet", () => {
+		const customCss =
+			'@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");\nbody { font-family: "Press Start 2P", sans-serif; }';
+		const customization = { customCss, homeTemplate: "", postTemplate: "", updatedAt: null };
+		const themedCreator = creator({ theme: "custom" });
+		for (const html of [renderCreatorPage(themedCreator, [], {}, undefined, customization), renderPostPage(themedCreator, post, {}, customization)]) {
+			const themeStyle = html.indexOf("<style data-creator-theme>");
+			const customStyle = html.indexOf("<style data-creator-custom>");
+			expect(themeStyle).toBeGreaterThan(-1);
+			expect(customStyle).toBeGreaterThan(themeStyle);
+			expect(html.slice(customStyle).startsWith(`<style data-creator-custom>${customCss}`)).toBe(true);
+		}
+	});
+
 	test("renders post data through a custom post template", () => {
 		const html = renderPostPage(
 			creator(),
