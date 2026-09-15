@@ -1,9 +1,18 @@
 import { QRCode, ErrorCorrectionLevel } from "@rabbit-company/qrcode";
 import PasswordEntropy from "@rabbit-company/password-entropy";
-import { api, type Creator, type CreatorCustomization, type CustomDomainSettings, type LicenseEntitlements, type Session } from "../api.ts";
+import {
+	api,
+	type Creator,
+	type CreatorCustomization,
+	type CustomDomainSettings,
+	type EmbedCustomization,
+	type LicenseEntitlements,
+	type Session,
+} from "../api.ts";
 import { CATEGORIES, DEFAULT_THEME_COLORS, LANGUAGES, SOCIAL_PLATFORMS, THEMES, instanceConfig } from "../constants.ts";
 import { HOME_STARTER_TEMPLATE, HOME_TEMPLATE_COMPONENTS, POST_STARTER_TEMPLATE, POST_TEMPLATE_COMPONENTS } from "../../shared/customization.ts";
 import type { ThemeColors } from "../../shared/constants.ts";
+import { DEFAULT_EMBED_CUSTOMIZATION, type EmbedCustomizationInput } from "../../shared/embed.ts";
 import { clearSession, setCreator } from "../session.ts";
 import { compressImage, confirm, el, field, formatBytes, formatDateTime, modal, render, setHtml, toast } from "../ui.ts";
 import { navigate } from "../router.ts";
@@ -20,6 +29,10 @@ function select(name: string, options: readonly (string | { value: string; label
 
 function labelled(label: string, control: HTMLElement, help?: string): HTMLElement {
 	return el("label", { class: "field", for: control.id }, el("span", {}, label), control, help !== undefined && el("span", { class: "help" }, help));
+}
+
+function escapeAttribute(value: string): string {
+	return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
 const COLOR_FIELDS: { key: keyof ThemeColors; label: string }[] = [
@@ -281,6 +294,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 	let backupCodesRemaining = 0;
 	let sessions: Session[] = [];
 	let customization: CreatorCustomization = { customCss: "", homeTemplate: "", postTemplate: "", updatedAt: null };
+	let embedCustomization: EmbedCustomization = { ...DEFAULT_EMBED_CUSTOMIZATION, updatedAt: null };
 	let entitlements: LicenseEntitlements = { baseStorage: 0, additionalStorage: 0, limit: 0, customDomain: false, licenses: [] };
 	let customDomain: CustomDomainSettings = { available: false, provider: "disabled", cnameTarget: "", entitled: false, domain: null };
 
@@ -289,14 +303,16 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 		creator = me.creator;
 		backupCodesRemaining = me.backupCodesRemaining;
 		setCreator(creator);
-		const [sessionResult, customizationResult, licenseResult, customDomainResult] = await Promise.all([
+		const [sessionResult, customizationResult, embedResult, licenseResult, customDomainResult] = await Promise.all([
 			api.sessions(),
 			creator.membership?.isOwner === false ? Promise.resolve(null) : api.customization(),
+			creator.membership?.isOwner === false ? Promise.resolve(null) : api.embedCustomization(),
 			creator.membership?.isOwner === false ? Promise.resolve(null) : api.licenses(),
 			creator.membership?.isOwner === false ? Promise.resolve(null) : api.customDomain(),
 		]);
 		sessions = sessionResult.sessions;
 		if (customizationResult) customization = customizationResult;
+		if (embedResult) embedCustomization = embedResult;
 		if (licenseResult) entitlements = licenseResult;
 		if (customDomainResult) customDomain = customDomainResult;
 	} catch (err) {
@@ -422,6 +438,67 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 		placeholder: ".custom-home {\n  max-width: 72rem;\n  margin: 0 auto;\n}",
 	});
 	customCss.value = customization.customCss;
+	const embedOptions: { key: Exclude<keyof EmbedCustomizationInput, "customCss">; label: string }[] = [
+		{ key: "showTitle", label: "Blog title" },
+		{ key: "showDescription", label: "Blog description" },
+		{ key: "showSearch", label: "Search" },
+		{ key: "showSocial", label: "Social links" },
+		{ key: "showAuthor", label: "Author on cards and posts" },
+		{ key: "showPostDescriptions", label: "Post descriptions on cards" },
+		{ key: "showShare", label: "Share link on posts" },
+	];
+	const embedInputs = Object.fromEntries(embedOptions.map(({ key }) => [key, el("input", { type: "checkbox", checked: embedCustomization[key] })])) as Record<
+		Exclude<keyof EmbedCustomizationInput, "customCss">,
+		HTMLInputElement
+	>;
+	const embedCss = el("textarea", {
+		id: "embed-css",
+		class: "code customization-editor css-editor",
+		rows: "12",
+		spellcheck: "false",
+		placeholder: "html[data-embed] { --text: #222; --accent: #c05020; }",
+	});
+	embedCss.value = embedCustomization.customCss;
+	const embedUrl =
+		customDomain.entitled && customDomain.domain?.status === "active"
+			? `https://${customDomain.domain.hostname}/_embed`
+			: `${window.location.origin}/creator/${encodeURIComponent(creator.username)}/_embed`;
+	const iframeCode = `<iframe src="${embedUrl}" title="${escapeAttribute(creator.title)} posts" loading="lazy" style="width:100%;min-height:600px;border:0"></iframe>`;
+	const embedSnippet = el("textarea", { class: "code embed-snippet", rows: "3", readonly: true, "aria-label": "Iframe code" });
+	embedSnippet.value = iframeCode;
+	const copyEmbed = el("button", { class: "button ghost" }, "Copy iframe code");
+	copyEmbed.addEventListener("click", async () => {
+		try {
+			await navigator.clipboard.writeText(iframeCode);
+			toast("Iframe code copied.", "success");
+		} catch {
+			embedSnippet.focus();
+			embedSnippet.select();
+			toast("Select and copy the iframe code shown above.", "info");
+		}
+	});
+	const saveEmbed = el("button", { class: "button primary" }, "Save embed design");
+	saveEmbed.addEventListener("click", async () => {
+		saveEmbed.disabled = true;
+		try {
+			await api.updateEmbedCustomization({
+				showTitle: embedInputs.showTitle.checked,
+				showDescription: embedInputs.showDescription.checked,
+				showSearch: embedInputs.showSearch.checked,
+				showSocial: embedInputs.showSocial.checked,
+				showAuthor: embedInputs.showAuthor.checked,
+				showPostDescriptions: embedInputs.showPostDescriptions.checked,
+				showShare: embedInputs.showShare.checked,
+				customCss: embedCss.value,
+			});
+			toast("Embed design saved.", "success");
+			reload();
+		} catch (err) {
+			toast(err instanceof Error ? err.message : "Could not save the embed design.", "error");
+		} finally {
+			saveEmbed.disabled = false;
+		}
+	});
 	const saveCustomization = el("button", { class: "button primary" }, "Save customization");
 	const starterTemplates = el("button", { class: "button ghost" }, "Load starter templates");
 	const restoreTemplates = el("button", { class: "button quiet danger" }, "Restore Bloggy defaults");
@@ -675,6 +752,36 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
 		isOwner && premiumLicenses(entitlements, reload),
 
 		isOwner && customDomainCard(customDomain, reload),
+
+		isOwner &&
+			el(
+				"div",
+				{ class: "card embed-card-settings" },
+				el("h2", {}, "Embed design"),
+				el("p", { class: "hint" }, "Use this separate view in an iframe. It shows only posts by default and gives every post a back link."),
+				el(
+					"div",
+					{ class: "embed-options" },
+					...embedOptions.map(({ key, label }) =>
+						el(
+							"label",
+							{ class: "embed-option" },
+							embedInputs[key],
+							el("span", { class: "embed-option-switch", "aria-hidden": "true" }),
+							el("span", {}, label),
+						),
+					),
+				),
+				labelled("Embed-only CSS", embedCss, "This CSS affects only the iframe view. It loads after Bloggy's embed styles."),
+				el("div", { class: "actions" }, saveEmbed, el("a", { class: "button ghost", href: embedUrl, target: "_blank", rel: "noopener" }, "Preview embed")),
+				el(
+					"div",
+					{ class: "embed-code" },
+					el("p", { class: "hint" }, "Paste this code into your website. Set its height to suit your posts."),
+					embedSnippet,
+					el("div", { class: "actions" }, copyEmbed),
+				),
+			),
 
 		isOwner &&
 			el(

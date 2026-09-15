@@ -2,6 +2,8 @@ import { config } from "../config.ts";
 import { avatarUrl, pictureUrl } from "../lib/storage.ts";
 import { parseSocial, parseThemeColors, type CreatorRow } from "../db/creators.ts";
 import { EMPTY_CUSTOMIZATION, type CreatorCustomization } from "../db/customizations.ts";
+import type { EmbedCustomization } from "../db/embeds.ts";
+import { DEFAULT_EMBED_CUSTOMIZATION } from "../../shared/embed.ts";
 import type { PostFilter, PostRow, PostSummaryRow } from "../db/posts.ts";
 import { escapeHtml } from "./markdown.ts";
 import { renderMarkdown } from "./markdown.ts";
@@ -23,6 +25,10 @@ export function mainPageLocation(username: string): PublicPageLocation {
 
 export function customPageLocation(origin: string): PublicPageLocation {
 	return { origin: origin.replace(/\/+$/, ""), basePath: "", whiteLabel: true };
+}
+
+function embedPageLocation(username: string, location: PublicPageLocation): PublicPageLocation {
+	return { ...location, basePath: location.whiteLabel ? "/_embed" : `/creator/${encodeURIComponent(username)}/_embed` };
 }
 
 function homePath(location: PublicPageLocation): string {
@@ -478,6 +484,100 @@ ${share}
 				author: { "@type": "Person", name: creator.author, url: creatorUrl(creator.username, location) },
 				publisher: { "@type": "Organization", name: creator.title, url: creatorUrl(creator.username, location) },
 			},
+		},
+		body,
+	);
+}
+
+/** A small, independent public view for sites that frame a creator's posts. */
+export function renderEmbedCreatorPage(
+	creator: CreatorRow,
+	posts: PostSummaryRow[],
+	filter: PostFilter = {},
+	paging: Pagination = { page: 1, total: posts.length, perPage: posts.length || 1 },
+	embed: EmbedCustomization = { ...DEFAULT_EMBED_CUSTOMIZATION, updatedAt: null },
+	location: PublicPageLocation = mainPageLocation(creator.username),
+): string {
+	const embedLocation = embedPageLocation(creator.username, location);
+	const home = homePath(embedLocation);
+	const social = parseSocial(creator.social);
+	const header =
+		embed.showTitle || embed.showDescription || embed.showSocial
+			? `<header class="embed-header">${embed.showTitle ? `<h1>${escapeHtml(creator.title)}</h1>` : ""}${embed.showDescription ? renderTagline(creator.description) : ""}${embed.showSocial ? renderSocial(social) : ""}</header>`
+			: "";
+	const search = embed.showSearch ? renderSearch(embedLocation, filter.search ?? "") : "";
+	const cards = posts
+		.map((post) => {
+			const href = postPath(embedLocation, post.slug);
+			return `<article class="embed-card">
+	<a href="${escapeHtml(href)}"><img class="embed-cover" src="${escapeHtml(publicPictureUrl(creator.username, post.picture, location))}" alt="" loading="lazy"></a>
+	<div class="embed-card-body">
+		<h2><a href="${escapeHtml(href)}">${escapeHtml(post.title)}</a></h2>
+		${embed.showPostDescriptions ? `<p>${escapeHtml(post.description)}</p>` : ""}
+		${embed.showAuthor ? `<span class="embed-author">${escapeHtml(creator.author)}</span>` : ""}
+	</div>
+</article>`;
+		})
+		.join("\n");
+	const list = posts.length === 0 ? `<p class="embed-empty">${emptyMessage(filter)}</p>` : `<div class="embed-grid">${cards}</div>`;
+	const previous = paging.page > 1 ? `<a rel="prev" href="${escapeHtml(home + listingQuery(filter, paging.page - 1))}">Previous</a>` : "";
+	const next = paging.page * paging.perPage < paging.total ? `<a rel="next" href="${escapeHtml(home + listingQuery(filter, paging.page + 1))}">Next</a>` : "";
+	const pagination = previous || next ? `<nav class="embed-pagination" aria-label="Posts pages">${previous}${next}</nav>` : "";
+	const body = `<main class="embed-wrap">${header}${search}${list}${pagination}</main>`;
+	return renderPage(
+		{
+			title: pageTitle(creator.title, filter, paging.page),
+			description: creator.description,
+			url: creatorUrl(creator.username, location),
+			language: creator.language,
+			image: publicAvatarUrl(creator.username, location),
+			icon: publicAvatarUrl(creator.username, location),
+			type: "profile",
+			siteName: creator.title,
+			theme: themeOf(creator),
+			themeCss: creatorThemeCss(creator),
+			customCss: embed.customCss,
+			noindex: true,
+			whiteLabel: true,
+			embed: true,
+		},
+		body,
+	);
+}
+
+export function renderEmbedPostPage(
+	creator: CreatorRow,
+	post: PostRow,
+	embed: EmbedCustomization = { ...DEFAULT_EMBED_CUSTOMIZATION, updatedAt: null },
+	location: PublicPageLocation = mainPageLocation(creator.username),
+): string {
+	const home = homePath(embedPageLocation(creator.username, location));
+	const url = postUrl(creator.username, post.slug, location);
+	const content = publicMediaUrl(renderMarkdown(post.markdown), location);
+	const byline = embed.showAuthor
+		? `<div class="embed-byline">${escapeHtml(creator.author)} <time datetime="${escapeHtml(post.published_at ?? post.created_at)}">${escapeHtml(formatDate(post.published_at ?? post.created_at))}</time></div>`
+		: "";
+	const share = embed.showShare
+		? `<a class="embed-share" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(`${post.title}\n\n${url}`)}" target="_blank" rel="noopener">Share post</a>`
+		: "";
+	const body = `<main class="embed-wrap"><article class="post embed-post"><a class="embed-back" href="${escapeHtml(home)}">← Back to posts</a>
+<h1>${escapeHtml(post.title)}</h1>${byline}<div class="content">${content}</div>${share}</article></main>`;
+	return renderPage(
+		{
+			title: post.title,
+			description: post.description,
+			url,
+			language: post.language,
+			image: publicPictureUrl(creator.username, post.picture, location),
+			icon: publicAvatarUrl(creator.username, location),
+			type: "article",
+			siteName: creator.title,
+			theme: themeOf(creator),
+			themeCss: creatorThemeCss(creator),
+			customCss: embed.customCss,
+			noindex: true,
+			whiteLabel: true,
+			embed: true,
 		},
 		body,
 	);

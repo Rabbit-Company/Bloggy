@@ -480,6 +480,108 @@ textarea.code {
 	margin-left: auto;
 }
 
+.embed-options {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+	gap: 0.7rem;
+	margin: 1rem 0;
+}
+.embed-option {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	min-height: 3.25rem;
+	padding: 0.75rem 0.9rem;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--bg);
+	cursor: pointer;
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1.35;
+}
+.embed-option:hover {
+	border-color: var(--accent);
+}
+.embed-option input[type="checkbox"] {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	padding: 0;
+	opacity: 0;
+}
+.embed-option-switch {
+	position: relative;
+	flex: none;
+	width: 2.6rem;
+	height: 1.5rem;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--surface-2);
+	transition: background 0.15s ease;
+}
+.embed-option-switch::after {
+	position: absolute;
+	top: 0.25rem;
+	left: 0.22rem;
+	width: 1rem;
+	height: 1rem;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+	content: "";
+	transition: transform 0.15s ease;
+}
+.embed-option input:checked + .embed-option-switch {
+	border-color: var(--accent);
+	background: var(--accent);
+}
+.embed-option input:checked + .embed-option-switch::after {
+	transform: translateX(1.1rem);
+}
+.embed-option input:focus-visible + .embed-option-switch {
+	outline: 2px solid var(--accent);
+	outline-offset: 3px;
+}
+@media (forced-colors: active) {
+	.embed-option-switch {
+		border-color: ButtonText;
+		background: Canvas;
+	}
+	.embed-option-switch::after {
+		background: ButtonText;
+	}
+	.embed-option input:checked + .embed-option-switch {
+		border-color: Highlight;
+		background: Highlight;
+	}
+	.embed-option input:checked + .embed-option-switch::after {
+		background: HighlightText;
+	}
+}
+.embed-card-settings .field {
+	margin-top: 1rem;
+}
+.embed-code {
+	margin-top: 1.5rem;
+	padding-top: 1.25rem;
+	border-top: 1px solid var(--border);
+}
+.embed-code .hint {
+	margin: 0 0 0.75rem;
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+.embed-snippet {
+	width: 100%;
+	resize: vertical;
+}
+.embed-code .actions {
+	margin-top: 0.75rem;
+}
+
 @media (max-width: 640px) {
 	.theme-colors-head {
 		display: block;

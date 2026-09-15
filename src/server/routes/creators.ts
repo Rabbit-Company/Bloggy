@@ -27,7 +27,8 @@ import { invalidateCreator, publicCache } from "../middleware/cache.ts";
 import { validateSettings } from "./shared.ts";
 import { clearSessionCookie } from "../lib/cookies.ts";
 import { findCustomization, saveCustomization } from "../db/customizations.ts";
-import { validateCustomization } from "../lib/customization.ts";
+import { findEmbedCustomization, saveEmbedCustomization } from "../db/embeds.ts";
+import { validateCustomization, validateEmbedCustomization } from "../lib/customization.ts";
 import type { AppState } from "../types.ts";
 import { accountRateLimit } from "../middleware/account-rate-limit.ts";
 
@@ -53,6 +54,19 @@ export function creatorRoutes(app: Web<AppState>): void {
 		const customization = validateCustomization(body);
 		const username = ctx.get("creator").username;
 		const saved = await saveCustomization(username, customization);
+		invalidateCreator(username);
+		return ok(ctx, saved);
+	});
+
+	app.get("/api/v1/creators/me/embed", requireOwner(), accountRateLimit("creators.embed.read", "read"), async (ctx) => {
+		return ok(ctx, await findEmbedCustomization(ctx.get("creator").username));
+	});
+
+	app.post("/api/v1/creators/me/embed", requireOwner(), accountRateLimit("creators.embed.update", "write"), async (ctx) => {
+		const body = await jsonBody<Record<string, unknown>>(ctx);
+		const embed = validateEmbedCustomization(body);
+		const username = ctx.get("creator").username;
+		const saved = await saveEmbedCustomization(username, embed);
 		invalidateCreator(username);
 		return ok(ctx, saved);
 	});

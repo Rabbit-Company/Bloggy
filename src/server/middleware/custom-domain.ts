@@ -3,7 +3,7 @@ import { mainHostname } from "../lib/custom-domain-host.ts";
 import { isSlugValid, isUuidValid } from "../lib/validation.ts";
 import type { AppMiddleware } from "../types.ts";
 
-const FIXED_PUBLIC_PATHS = new Set(["/", "/feed.rss", "/feed.atom", "/feed.json", "/robots.txt", "/sitemap.xml"]);
+const FIXED_PUBLIC_PATHS = new Set(["/", "/_embed", "/feed.rss", "/feed.atom", "/feed.json", "/robots.txt", "/sitemap.xml"]);
 const RESERVED_ROOT_SEGMENTS = new Set(["api", "assets", "creator", "health", "media", "metrics", "panel", "preview"]);
 
 function publicMediaPath(pathname: string, username: string): boolean {
@@ -14,6 +14,7 @@ function publicMediaPath(pathname: string, username: string): boolean {
 
 function publicPath(pathname: string, username: string): boolean {
 	if (FIXED_PUBLIC_PATHS.has(pathname) || pathname.startsWith("/assets/")) return true;
+	if (pathname.startsWith("/_embed/") && isSlugValid(pathname.slice("/_embed/".length))) return true;
 	if (publicMediaPath(pathname, username)) return true;
 	const segments = pathname.split("/").filter(Boolean);
 	return segments.length === 1 && !RESERVED_ROOT_SEGMENTS.has(segments[0]!) && isSlugValid(segments[0]);

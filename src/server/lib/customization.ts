@@ -1,5 +1,6 @@
 import { CUSTOM_CSS_MAX_BYTES, CUSTOM_TEMPLATE_MAX_BYTES } from "../../shared/constants.ts";
 import { HOME_TEMPLATE_COMPONENTS, POST_TEMPLATE_COMPONENTS, type CreatorCustomizationInput } from "../../shared/customization.ts";
+import type { EmbedCustomizationInput } from "../../shared/embed.ts";
 import { ApiError, ErrorCode } from "./errors.ts";
 import { isSafeUrl } from "../ssr/markdown.ts";
 
@@ -164,6 +165,28 @@ export function validateCustomization(input: unknown): CreatorCustomizationInput
 		customCss: value.customCss.trim(),
 		homeTemplate: value.homeTemplate.trim() === "" ? "" : sanitizeTemplate("home", value.homeTemplate),
 		postTemplate: value.postTemplate.trim() === "" ? "" : sanitizeTemplate("post", value.postTemplate),
+	};
+}
+
+export function validateEmbedCustomization(input: unknown): EmbedCustomizationInput {
+	if (typeof input !== "object" || input === null || Array.isArray(input)) throw new ApiError(ErrorCode.INVALID_CUSTOMIZATION);
+	const value = input as Record<string, unknown>;
+	const options = ["showTitle", "showDescription", "showSearch", "showSocial", "showAuthor", "showPostDescriptions", "showShare"] as const;
+	if (options.some((option) => typeof value[option] !== "boolean") || typeof value.customCss !== "string") {
+		throw new ApiError(ErrorCode.INVALID_CUSTOMIZATION, "Embed settings must include each display option and custom CSS.");
+	}
+	if (encoder.encode(value.customCss as string).byteLength > CUSTOM_CSS_MAX_BYTES) {
+		throw new ApiError(ErrorCode.INVALID_CUSTOMIZATION, `Embed CSS cannot be larger than ${CUSTOM_CSS_MAX_BYTES / 1000} kB.`);
+	}
+	return {
+		showTitle: value.showTitle as boolean,
+		showDescription: value.showDescription as boolean,
+		showSearch: value.showSearch as boolean,
+		showSocial: value.showSocial as boolean,
+		showAuthor: value.showAuthor as boolean,
+		showPostDescriptions: value.showPostDescriptions as boolean,
+		showShare: value.showShare as boolean,
+		customCss: (value.customCss as string).trim(),
 	};
 }
 

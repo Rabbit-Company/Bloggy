@@ -31,6 +31,13 @@ async function describePaths(username: string, rows: { label: string; value: num
 		if (rest === null) return row;
 
 		if (rest.startsWith("feed.")) return { ...row, label: `${rest.slice(5).toUpperCase()} feed`, detail: row.label };
+		if (rest === "_embed") return { ...row, label: "Embed home", detail: row.label };
+		if (rest.startsWith("_embed/")) {
+			const slug = rest.slice("_embed/".length);
+			if (!isSlugValid(slug)) return [];
+			const title = titles.get(slug);
+			return { ...row, label: title === undefined ? slug : `Embedded: ${title}`, detail: row.label };
+		}
 		if (base.length === 0 && !isSlugValid(rest)) return [];
 
 		const title = titles.get(rest);

@@ -361,6 +361,14 @@ The **Advanced customization** section in Settings provides separate HTML layout
 
 Advanced HTML is sanitized on the server. Scripts, forms, embedded pages, event handlers, unsafe URLs and document-level elements are rejected because creator pages share an origin with authenticated Bloggy sessions. Custom CSS and each template are limited to 50 kB. Only blog owners can read or update these settings, and saving them invalidates the affected public-page cache immediately.
 
+### Embedding a blog
+
+Settings also has a separate **Embed design** section. Its iframe view shows published post cards without blog headers, author names, descriptions, search, social links or share links by default. Owners can turn those elements on individually and add embed-only CSS without changing the normal blog. Each embedded post has a **Back to posts** link that stays inside the iframe. The panel provides a preview URL and iframe code to copy.
+
+On the main Bloggy host the embed URL is `/creator/<username>/_embed`, with posts at `/creator/<username>/_embed/<slug>`. An active custom domain uses `/_embed` and `/_embed/<slug>`. Main-host embed links redirect to the active custom domain, just like regular blog links. Embed pages are public and frameable, but marked `noindex, nofollow`. The creator panel remains unframeable. Only published posts appear in an embed.
+
+The example iframe uses full width and a 600 px minimum height. Adjust the height for your site's layout. CSS inside an iframe cannot inherit CSS from the parent page, so use the embed-only CSS editor to match its fonts, colors, spacing and card design. Font `@import` rules should be placed at the top of that editor. If your website or proxy uses a restrictive Content Security Policy, allow the Bloggy or custom-domain host in its iframe policy.
+
 ## Caching
 
 Rendered pages and public API reads are cached in memory (`CACHE_TTL`, default 5 minutes). Repeat visitors get a small "nothing has changed" reply instead of the whole page, and once an entry ages out the old copy is still served while a fresh one is prepared, so nobody waits. Publishing, editing, unpublishing or deleting a post clears that creator's pages plus the shared landing page and sitemap, rather than the whole cache. Browsers revalidate HTML while shared caches can retain it for `CACHE_TTL` seconds through `s-maxage`.

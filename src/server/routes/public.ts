@@ -10,8 +10,17 @@ import { findSignedInCreator, requireAuth } from "../middleware/auth.ts";
 import { ok } from "../lib/response.ts";
 import type { PublicConfig } from "../../shared/constants.ts";
 import { analyticsEnabled } from "../lib/burrowgate.ts";
-import { customPageLocation, renderCreatorPage, renderMainPage, renderPostPage, type PublicPageLocation } from "../ssr/pages.ts";
+import {
+	customPageLocation,
+	renderCreatorPage,
+	renderEmbedCreatorPage,
+	renderEmbedPostPage,
+	renderMainPage,
+	renderPostPage,
+	type PublicPageLocation,
+} from "../ssr/pages.ts";
 import { findCustomization } from "../db/customizations.ts";
+import { findEmbedCustomization } from "../db/embeds.ts";
 import { renderAtom, renderCreatorSitemap, renderJsonFeed, renderRobots, renderRss, renderSitemap } from "../ssr/feeds.ts";
 import { PUBLIC_ASSETS, type PublicAsset } from "../lib/public-assets.ts";
 import { logger } from "../lib/logger.ts";
@@ -67,6 +76,28 @@ async function creatorPost(ctx: AppContext, username: string, slug: string, loca
 	return ctx.html(renderPostPage(creator, post, location ? { location } : {}, customization));
 }
 
+async function embedListing(ctx: AppContext, username: string, location?: PublicPageLocation): Promise<Response> {
+	const creator = await requireCreator(username);
+	const filter = readFilter(ctx.req.url);
+	const page = readPage(ctx.req.url);
+	const [posts, total, embed] = await Promise.all([
+		listPublishedByCreator(creator.username, POSTS_PER_PAGE, (page - 1) * POSTS_PER_PAGE, filter),
+		countPublishedByCreator(creator.username, filter),
+		findEmbedCustomization(creator.username),
+	]);
+	return ctx.html(renderEmbedCreatorPage(creator, posts, filter, { page, total, perPage: POSTS_PER_PAGE }, embed, location), 200, {
+		"X-Robots-Tag": "noindex, nofollow",
+	});
+}
+
+async function embedPost(ctx: AppContext, username: string, slug: string, location?: PublicPageLocation): Promise<Response> {
+	const creator = await requireCreator(username);
+	if (!isSlugValid(slug)) throw new ApiError(ErrorCode.POST_NOT_FOUND);
+	const [post, embed] = await Promise.all([findPublishedPost(creator.username, slug), findEmbedCustomization(creator.username)]);
+	if (!post) throw new ApiError(ErrorCode.POST_NOT_FOUND);
+	return ctx.html(renderEmbedPostPage(creator, post, embed, location), 200, { "X-Robots-Tag": "noindex, nofollow" });
+}
+
 async function redirectToCustomDomain(ctx: AppContext, username: string, pathname: string): Promise<Response | null> {
 	const domain = await findActiveCustomDomainByUsername(username);
 	if (!domain) return null;
@@ -95,6 +126,30 @@ export function publicRoutes(app: Web<AppState>): void {
 	app.get("/creator/:username", publicCache(), async (ctx) => {
 		const username = ctx.params.username ?? "";
 		return (await redirectToCustomDomain(ctx, username, "/")) ?? (await creatorListing(ctx, username));
+	});
+
+	app.get("/creator/:username/_embed", publicCache(), async (ctx) => {
+		const username = ctx.params.username ?? "";
+		return (await redirectToCustomDomain(ctx, username, "/_embed")) ?? (await embedListing(ctx, username));
+	});
+
+	app.get("/creator/:username/_embed/:slug", publicCache(), async (ctx) => {
+		const username = ctx.params.username ?? "";
+		const slug = ctx.params.slug ?? "";
+		const redirected = await redirectToCustomDomain(ctx, username, `/_embed/${encodeURIComponent(slug)}`);
+		return redirected ?? (await embedPost(ctx, username, slug));
+	});
+
+	app.get("/_embed", publicCache(), async (ctx) => {
+		const custom = ctx.get("customDomain");
+		if (!custom) throw new ApiError(ErrorCode.NOT_FOUND);
+		return await embedListing(ctx, custom.username, customPageLocation(custom.origin));
+	});
+
+	app.get("/_embed/:slug", publicCache(), async (ctx) => {
+		const custom = ctx.get("customDomain");
+		if (!custom) throw new ApiError(ErrorCode.NOT_FOUND);
+		return await embedPost(ctx, custom.username, ctx.params.slug ?? "", customPageLocation(custom.origin));
 	});
 
 	// Registered before the post route so `/creator/:username/feed.rss` is not

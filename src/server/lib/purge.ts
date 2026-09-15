@@ -9,6 +9,7 @@ import { deleteTeamInvites, deleteTeamMembers, listTeamMemberUsernames } from ".
 import { deletePasswordResetTokens } from "../db/password-resets.ts";
 import { deleteEmailConfirmationTokens } from "../db/email-confirmations.ts";
 import { deleteCustomization } from "../db/customizations.ts";
+import { deleteEmbedCustomization } from "../db/embeds.ts";
 import { revokeLicensesByCreator } from "../db/licenses.ts";
 import { deleteCustomDomainByUsername, findCustomDomainByUsername } from "../db/custom-domains.ts";
 import { deleteCustomDomainResources } from "./custom-domain-provider.ts";
@@ -50,6 +51,7 @@ export async function purgeCreator(username: string, reason: string): Promise<vo
 	await deletePasswordResetTokens(username);
 	await deleteEmailConfirmationTokens(username);
 	await deleteCustomization(username);
+	await deleteEmbedCustomization(username);
 	const customDomain = await findCustomDomainByUsername(username);
 	if (customDomain) {
 		try {

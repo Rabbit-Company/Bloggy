@@ -357,6 +357,23 @@ export function migrations(d: DatabaseDialect): Migration[] {
 				...trailing(customDomainIdx),
 			],
 		},
+		{
+			name: "0011_creator_embeds",
+			statements: [
+				`CREATE TABLE IF NOT EXISTS creator_embeds (
+	username ${varchar(d, 30)} NOT NULL PRIMARY KEY,
+	show_title ${integer(d)} NOT NULL,
+	show_description ${integer(d)} NOT NULL,
+	show_search ${integer(d)} NOT NULL,
+	show_social ${integer(d)} NOT NULL,
+	show_author ${integer(d)} NOT NULL,
+	show_post_descriptions ${integer(d)} NOT NULL,
+	show_share ${integer(d)} NOT NULL,
+	custom_css ${text(d)} NOT NULL,
+	updated_at ${timestamp(d)} NOT NULL
+)`,
+			],
+		},
 	];
 }
 

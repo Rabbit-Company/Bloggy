@@ -32,6 +32,7 @@ export interface PageMeta {
 	themeCss?: string;
 	customCss?: string;
 	whiteLabel?: boolean;
+	embed?: boolean;
 }
 
 function twitterHandle(url: string): string {
@@ -67,7 +68,7 @@ export function renderPage(meta: PageMeta, body: string): string {
 				].join("");
 
 	return `<!doctype html>
-<html lang="${escapeHtml(meta.language)}" data-theme="${escapeHtml(meta.theme)}">
+<html lang="${escapeHtml(meta.language)}" data-theme="${escapeHtml(meta.theme)}"${meta.embed ? " data-embed" : ""}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

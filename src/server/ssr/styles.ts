@@ -291,6 +291,34 @@ footer { border-top: 1px solid var(--border); margin-top: 4rem; padding: 2rem 0;
 .share:hover { background: var(--accent-hover); color: #fff; }
 .share svg { width: 1.15rem; height: 1.15rem; }
 
+/* The framed view has its own layout. Every selector is scoped so the regular
+   creator and post pages keep their existing appearance. */
+html[data-embed] { --bg: transparent; --surface: transparent; --shadow: none; }
+.embed-wrap { width: 100%; max-width: 80rem; margin-inline: auto; padding: 1rem; }
+.embed-header { margin-bottom: 1.25rem; }
+.embed-header h1 { margin: 0; font-size: clamp(1.4rem, 4vw, 2rem); line-height: 1.2; }
+.embed-header p { margin: 0.25rem 0 0; color: var(--muted); }
+.embed-header .social { justify-content: flex-start; }
+.embed-wrap .search { margin-bottom: 1.25rem; font-size: 1rem; }
+.embed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
+.embed-card { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.embed-cover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.embed-card-body { padding: 0.9rem; }
+.embed-card h2 { margin: 0; font-size: 1.08rem; line-height: 1.35; }
+.embed-card h2 a { color: var(--text); }
+.embed-card p { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.92rem; }
+.embed-author { display: block; margin-top: 0.6rem; color: var(--muted); font-size: 0.85rem; }
+.embed-empty { margin: 2rem 0; color: var(--muted); text-align: center; }
+.embed-pagination { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; }
+.embed-pagination a { padding: 0.45rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); }
+.embed-pagination a[rel="next"] { margin-left: auto; }
+.embed-back { display: inline-block; margin-bottom: 1.25rem; font-weight: 650; }
+.embed-post { max-width: 56rem; margin-inline: auto; font-size: 1.05rem; }
+.embed-post h1 { margin-bottom: 1rem; }
+.embed-byline { margin-bottom: 1rem; color: var(--muted); font-size: 0.9rem; }
+.embed-byline time { margin-left: 0.4rem; }
+.embed-share { display: inline-block; margin-top: 1.5rem; }
+
 .hidden { display: none !important; }
 
 @media (prefers-reduced-motion: reduce) {

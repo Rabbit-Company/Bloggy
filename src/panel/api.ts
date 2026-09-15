@@ -2,6 +2,7 @@ import { clearSession } from "./session.ts";
 import { ErrorCode } from "../shared/errors.ts";
 import type { PostStatus, PublicConfig, TeamRole, ThemeColors } from "../shared/constants.ts";
 import type { CreatorCustomizationInput } from "../shared/customization.ts";
+import type { EmbedCustomizationInput } from "../shared/embed.ts";
 import worldMapUrl from "./assets/world.svg";
 export type { PostStatus, TeamRole };
 
@@ -266,6 +267,10 @@ export interface CreatorCustomization extends CreatorCustomizationInput {
 	updatedAt: string | null;
 }
 
+export interface EmbedCustomization extends EmbedCustomizationInput {
+	updatedAt: string | null;
+}
+
 export const api = {
 	config() {
 		return request<PublicConfig>("/api/v1/config", {}, false);
@@ -362,6 +367,14 @@ export const api = {
 
 	updateCustomization(customization: CreatorCustomizationInput) {
 		return request<CreatorCustomization>("/api/v1/creators/me/customization", { method: "POST", body: json(customization) });
+	},
+
+	embedCustomization() {
+		return request<EmbedCustomization>("/api/v1/creators/me/embed");
+	},
+
+	updateEmbedCustomization(embed: EmbedCustomizationInput) {
+		return request<EmbedCustomization>("/api/v1/creators/me/embed", { method: "POST", body: json(embed) });
 	},
 
 	updateSocial(social: Record<string, string>) {

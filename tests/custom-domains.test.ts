@@ -269,6 +269,23 @@ describe("custom domain hostnames", () => {
 		expect(html).not.toContain("Powered by");
 	});
 
+	test("serves frameable embed pages on the custom hostname and redirects main embed links", async () => {
+		await activateDomain();
+		const app = createApp();
+		const listing = await app.handle(new Request(`https://${HOSTNAME}/_embed`));
+		const listingHtml = await listing.text();
+		expect(listing.status).toBe(200);
+		expect(listing.headers.get("X-Frame-Options")).toBeNull();
+		expect(listingHtml).toContain('href="/_embed/first-story"');
+		expect(listingHtml).toContain(`src="https://${HOSTNAME}/media/images/${USER}/${PICTURE}"`);
+		const post = await app.handle(new Request(`https://${HOSTNAME}/_embed/first-story`));
+		expect(post.status).toBe(200);
+		expect(await post.text()).toContain('class="embed-back" href="/_embed"');
+		const redirect = await app.handle(new Request(`http://localhost:3000/creator/${USER}/_embed`));
+		expect(redirect.status).toBe(302);
+		expect(redirect.headers.get("Location")).toBe(`https://${HOSTNAME}/_embed`);
+	});
+
 	test("serves posts and feeds directly under the custom hostname", async () => {
 		await activateDomain();
 		const app = createApp();
@@ -381,6 +398,8 @@ describe("custom domain hostnames", () => {
 									{ label: "/assets/blog-example.css", value: 5 },
 									{ label: "/robots.txt", value: 2 },
 									{ label: "/first-story", value: 3 },
+									{ label: "/_embed", value: 2 },
+									{ label: "/_embed/first-story", value: 1 },
 								]
 							: [],
 					points: [],
@@ -399,6 +418,8 @@ describe("custom domain hostnames", () => {
 			expect(pathsBody.data.rows).toEqual([
 				{ label: "Blog home", detail: "/", value: 4 },
 				{ label: "The first Rabbit Company story", detail: "/first-story", value: 3 },
+				{ label: "Embed home", detail: "/_embed", value: 2 },
+				{ label: "Embedded: The first Rabbit Company story", detail: "/_embed/first-story", value: 1 },
 			]);
 
 			const page = await app.handle(
